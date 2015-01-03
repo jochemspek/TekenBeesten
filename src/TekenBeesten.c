@@ -4,7 +4,11 @@ int init ( ESContext *esContext )
 {
   UserData *userData = esContext->userData;
   GLbyte bounceVertShader[] =  
+#ifdef OSX
+     "#version 120\n"
+#else
     "precision mediump float;     \n"
+#endif
     "attribute vec4 a_position;   \n"
     "attribute vec2 a_texCoord;   \n"
     "varying vec2 v_texCoord;     \n"
@@ -14,8 +18,13 @@ int init ( ESContext *esContext )
     "   v_texCoord = a_texCoord;  \n"
     "}                            \n";
 
-  GLbyte bounceFragShader[] =  
+  GLbyte bounceFragShader[] = 
+#ifdef OSX 
+    "#version 120\n"
+    "#define highp\n"
+#else
     "precision highp float;                            \n"
+#endif
     "varying vec2 v_texCoord;                            \n"
     "uniform sampler2D s_sampler;                        \n"
     "uniform highp float f_fade;                       \n"
@@ -31,7 +40,12 @@ int init ( ESContext *esContext )
     "}                                                   \n";
 
   GLbyte passThroughVertShader[] =  
+#ifdef OSX
+    "#version 120\n"
+    "#define highp\n"
+#else
     "precision mediump float;     \n"
+#endif
     "attribute vec2 a_position;   \n"
     "attribute vec4 a_color;      \n"
     "varying vec4 v_color;        \n"
@@ -43,12 +57,17 @@ int init ( ESContext *esContext )
     "}                            \n";
 
   GLbyte passThroughFragShader[] =  
+#ifdef OSX
+    "#version 120\n"
+#else
     "precision mediump float;                            \n"
+#endif
     "varying vec4 v_color;                               \n"
     "void main()                                         \n"
     "{                                                   \n"
-    " float edge = min( 0.707 - distance( gl_PointCoord, vec2( 0.5, 0.5 ) ), 1.0 ); \n"
-    "  gl_FragColor = v_color * edge;                            \n"
+    "   float edge = min( 0.707 - distance( gl_PointCoord, vec2( 0.5, 0.5 ) ), 1.0 ); \n"
+    "   gl_FragColor = v_color * edge;                            \n"
+    "   gl_FragColor = v_color;                            \n"
     "}                                                   \n";
 
   GLubyte * data;
@@ -706,8 +725,6 @@ void update ( ESContext *esContext )
   glEnableVertexAttribArray ( userData->bounceTexCoordLoc );
   glUniform1i ( userData->bounceSamplerLoc, 0 );
   glDrawElements ( GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, bounceIndices );
-
-//eglSwapBuffers ( esContext->eglDisplay, esContext->eglSurface );
 }
 
 void shutDown ( ESContext *esContext )
@@ -722,7 +739,6 @@ void shutDown ( ESContext *esContext )
    glDeleteProgram ( userData->bounceProgram );
    glDeleteProgram ( userData->passThroughProgram );
 }
-
 
 int main ( int argc, char *argv[] )
 {
