@@ -30,6 +30,11 @@ typedef struct
    GLfloat g;
    GLfloat b;
 
+   GLfloat h;
+   GLfloat s;
+   GLfloat l;
+
+   int index;
    float power;
    float amplitude;
    float frequency;
@@ -41,6 +46,10 @@ typedef struct
 {
    GLfloat x;
    GLfloat y;
+
+   GLfloat r;
+   GLfloat g;
+   GLfloat b;
 
    GLfloat x_;
    GLfloat y_;
@@ -58,6 +67,7 @@ typedef struct
    GLint bouncePositionLoc;
    GLint bounceTexCoordLoc;
    GLint bounceSamplerLoc;
+   GLint bounceFadeLoc;
 
    // Attribute locations
    GLint  passThroughPositionLoc;
@@ -77,6 +87,8 @@ typedef struct
 
 } UserData;
 
+void  rgb2hsl( float r, float g, float b, float *h, float *s, float *l );
+void hsl2rgb( float h, float s, float l, float *r, float *g, float *b );
 void  addAttractor( ESContext * esContext, float x, float y, float r, float g, float b, float phase, float frequency, float amplitude );
 void  addBoid( ESContext * esContext, float x, float y, int attractor );
 void  updateBoids( ESContext * esContext );
@@ -84,5 +96,6 @@ void  updateAttractors( ESContext * esContext );
 void  setAttractorPosition( ESContext * esContext, int which, float x, float y );
 void  drawBoids( ESContext * esContext );
 int   init ( ESContext *esContext );
+void  assertNoError( ESContext *esContext );
 void  update ( ESContext *esContext );
 void  shutDown ( ESContext *esContext );
