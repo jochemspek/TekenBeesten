@@ -25,19 +25,6 @@
 #include <sys/time.h>
 #include "esUtil.h"
 
-///
-//  userInterrupt()
-//
-//      Reads from X11 event loop and interrupt program if there is a keypress, or
-//      window close action.
-//
-GLboolean userInterrupt(ESContext *esContext)
-{
-
-    GLboolean userinterrupt = GL_FALSE;
-    return userinterrupt;
-}
-
 
 //////////////////////////////////////////////////////////////////
 //
@@ -86,21 +73,9 @@ GLboolean ESUTIL_API esCreateWindow ( ESContext *esContext, const char* title, G
     glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH | GLUT_MULTISAMPLE);
 
     glutCreateWindow(title);
-    
-#if 0
-    GLenum err = glewInit();
-    if (GLEW_OK != err)
-    {
-      /* Problem: glewInit failed, something is seriously wrong. */
-      fprintf(stderr, "Error: %s\n", glewGetErrorString(err));
-      exit(1);
-    }
-    fprintf(stdout, "Status: Using GLEW %s\n", glewGetString(GLEW_VERSION));
-#endif
 
     return GL_TRUE;
 }
-
 
 ///
 //  esMainLoop()
@@ -158,15 +133,15 @@ void motion()
 void
 kbd(unsigned char key, int x, int y)
 {
-  switch((char)key) {
-  case 'q':
-  case 27:    /* ESC */
-      exit(0);
-  default:
-        break;
-  }
+    switch((char)key) {
+        case 'q':
+        case 27:    /* ESC */
+            exit(0);
+        default:
+            break;
+    }
 
-  return;
+    return;
 }
 
 void ESUTIL_API esMainLoop ( ESContext *esContext )
