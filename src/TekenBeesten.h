@@ -34,6 +34,7 @@ typedef struct
    float amplitude;
    float frequency;
    float phase;
+
 } Attractor;
 
 typedef struct
@@ -56,7 +57,7 @@ typedef struct
    // Attribute locations
    GLint bouncePositionLoc;
    GLint bounceTexCoordLoc;
-   GLint bounceBaseMapLoc;
+   GLint bounceSamplerLoc;
 
    // Attribute locations
    GLint  passThroughPositionLoc;
@@ -65,6 +66,9 @@ typedef struct
    // Texture handles
    GLuint baseMapTexId;
    GLuint bounceMapTexId;
+
+   GLuint baseFramebuffer;
+   GLuint bounceFramebuffer;
 
    Boid * boids;
    Attractor * attractors;

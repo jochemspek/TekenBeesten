@@ -37,10 +37,12 @@ int init ( ESContext *esContext )
    GLbyte bounceFragShader[] =  
       "precision mediump float;                            \n"
       "varying vec2 v_texCoord;                            \n"
-      "uniform sampler2D s_baseMap;                        \n"
+      "uniform sampler2D s_sampler;                        \n"
       "void main()                                         \n"
       "{                                                   \n"
-      "  gl_FragColor = texture2D( s_baseMap, v_texCoord );\n"
+      "  vec4 color = texture2D( s_sampler, v_texCoord );  \n"
+      "  color *= 0.99;                                     \n"
+      "  gl_FragColor = color;                             \n"
       "}                                                   \n";
 
    GLbyte passThroughVertShader[] =  
@@ -61,11 +63,13 @@ int init ( ESContext *esContext )
       "{                                                   \n"
       "  gl_FragColor = v_color;                            \n"
       "}                                                   \n";
+
    GLubyte * data;
    int width = 2048;
    int height = 1024;
    int i;
-/*
+   GLenum status;
+
    // Load the shaders and get a linked program object
    userData->bounceProgram = esLoadProgram ( bounceVertShader, bounceFragShader );
 
@@ -74,8 +78,11 @@ int init ( ESContext *esContext )
    userData->bounceTexCoordLoc = glGetAttribLocation ( userData->bounceProgram, "a_texCoord" );
    
    // Get the sampler location
-   userData->bounceBaseMapLoc = glGetUniformLocation ( userData->bounceProgram, "s_baseMap" );
-*/
+   userData->bounceSamplerLoc = glGetUniformLocation ( userData->bounceProgram, "s_sampler" );
+
+
+
+
    // Load the shaders and get a linked program object
    userData->passThroughProgram = esLoadProgram ( passThroughVertShader, passThroughFragShader );
 
@@ -95,6 +102,15 @@ int init ( ESContext *esContext )
    glTexParameteri ( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
    glTexParameteri ( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
 
+   glGenFramebuffers( 1, &( userData->baseFramebuffer ) );
+   glBindFramebuffer( GL_FRAMEBUFFER, userData->baseFramebuffer );
+   glFramebufferTexture2D( GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, userData->baseMapTexId, 0 );
+
+   status = glCheckFramebufferStatus( GL_FRAMEBUFFER );
+   if( status != GL_FRAMEBUFFER_COMPLETE ){
+      printf( "error making framebuffer\n" );
+   }
+
    data = ( GLubyte * )calloc( width * height * 3, sizeof( GLubyte ) );
    for( i = 0; i < width * height * 3; i++ ){
       data[ i ] = random() % 255;
@@ -106,6 +122,17 @@ int init ( ESContext *esContext )
    glTexParameteri ( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
    glTexParameteri ( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
    glTexParameteri ( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
+
+   glGenFramebuffers( 1, &( userData->bounceFramebuffer ) );
+   glBindFramebuffer( GL_FRAMEBUFFER, userData->bounceFramebuffer );
+   glFramebufferTexture2D( GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, userData->bounceMapTexId, 0 );
+
+   status = glCheckFramebufferStatus( GL_FRAMEBUFFER );
+   if( status != GL_FRAMEBUFFER_COMPLETE ){
+      printf( "error making framebuffer\n" );
+   }
+
+   glBindFramebuffer( GL_FRAMEBUFFER, 0 );
 
    userData->boids = NULL;
    userData->attractors = NULL;
@@ -373,24 +400,37 @@ void drawAttractors( ESContext * esContext ){
 void update ( ESContext *esContext )
 {
    UserData *userData = esContext->userData;
-   GLfloat vBounceVertices[] = { -0.5f,  0.5f, 0.0f, 
+   GLfloat vBounceVertices[] = { -1.0f,  1.0f, 0.0f, 
                                   0.0f,  0.0f,       
-                                 -0.5f, -0.5f, 0.0f, 
-                                  0.0f,  1.0f,       
-                                  0.5f, -0.5f, 0.0f, 
-                                  1.0f,  1.0f,       
-                                  0.5f,  0.5f, 0.0f, 
-                                  1.0f,  0.0f        
+                                 -1.0f, -1.0f, 0.0f, 
+                                  0.0f,  600.0f / 1024.0f,       
+                                  1.0f, -1.0f, 0.0f, 
+                                  600.0f / 2048.0f,  600.0f / 1024.0f,       
+                                  1.0f,  1.0f, 0.0f, 
+                                  600.0f / 2048.0f,  0.0f        
                            };
    GLushort bounceIndices[] = { 0, 1, 2, 0, 2, 3 };
 
    // Set the viewport
    glViewport ( 0, 0, esContext->width, esContext->height );
-   
-   // Clear the color buffer
-   glClear ( GL_COLOR_BUFFER_BIT );
 
-   // Use the program object
+   // bind the base map
+   glBindFramebuffer( GL_FRAMEBUFFER, userData->baseFramebuffer );
+
+   // draw the bounce map into the base map
+   glActiveTexture( GL_TEXTURE0 );
+   glBindTexture( GL_TEXTURE_2D, userData->bounceMapTexId );
+   glUseProgram( userData->bounceProgram );
+   glVertexAttribPointer( userData->bouncePositionLoc, 3, GL_FLOAT, 
+                           GL_FALSE, 5 * sizeof(GLfloat), vBounceVertices );
+   glVertexAttribPointer( userData->bounceTexCoordLoc, 2, GL_FLOAT,
+                           GL_FALSE, 5 * sizeof(GLfloat), &vBounceVertices[ 3 ] );
+   glEnableVertexAttribArray( userData->bouncePositionLoc );
+   glEnableVertexAttribArray( userData->bounceTexCoordLoc );
+   glUniform1i( userData->bounceSamplerLoc, 0 );
+   glDrawElements( GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, bounceIndices );
+
+   // draw the boids (into the base map)
    glUseProgram ( userData->passThroughProgram );
 
    if( random() % 100 == 0 ){
@@ -403,30 +443,42 @@ void update ( ESContext *esContext )
    drawBoids( esContext );
    drawAttractors( esContext );
 
-// then bounce
-/*
 
 
+   // copy the base texture to the bounce buffer
+   glBindFramebuffer( GL_FRAMEBUFFER, userData->bounceFramebuffer );
 
-
-   // Bind the base map
    glActiveTexture ( GL_TEXTURE0 );
    glBindTexture ( GL_TEXTURE_2D, userData->baseMapTexId );
+   glUseProgram ( userData->bounceProgram );
+   glVertexAttribPointer ( userData->bouncePositionLoc, 3, GL_FLOAT, 
+                           GL_FALSE, 5 * sizeof(GLfloat), vBounceVertices );
+   glVertexAttribPointer ( userData->bounceTexCoordLoc, 2, GL_FLOAT,
+                           GL_FALSE, 5 * sizeof(GLfloat), & vBounceVertices[ 3 ] );
 
-   // Set the base map sampler to texture unit to 0
-   glUniform1i( userData->bounceBaseMapLoc, 0 );
+   glEnableVertexAttribArray ( userData->bouncePositionLoc );
+   glEnableVertexAttribArray ( userData->bounceTexCoordLoc );
+   glUniform1i( userData->bounceSamplerLoc, 0 );
+   glDrawElements ( GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, bounceIndices );
 
-   // Bind the light map
-   glActiveTexture ( GL_TEXTURE1 );
+   // draw the base texture onto the screen
+   glBindFramebuffer( GL_FRAMEBUFFER, 0 );
+
+   glActiveTexture ( GL_TEXTURE0 );
    glBindTexture ( GL_TEXTURE_2D, userData->bounceMapTexId );
-   
-   // Set the light map sampler to texture unit 1
-   glUniform1i ( userData->bounceMapLoc, 1 );
+   glUseProgram ( userData->bounceProgram );
+   glVertexAttribPointer ( userData->bouncePositionLoc, 3, GL_FLOAT, 
+                           GL_FALSE, 5 * sizeof(GLfloat), vBounceVertices );
+   glVertexAttribPointer ( userData->bounceTexCoordLoc, 2, GL_FLOAT,
+                           GL_FALSE, 5 * sizeof(GLfloat), & vBounceVertices[ 3 ] );
+
+   glEnableVertexAttribArray ( userData->bouncePositionLoc );
+   glEnableVertexAttribArray ( userData->bounceTexCoordLoc );
+   glUniform1i ( userData->bounceSamplerLoc, 0 );
+   glDrawElements ( GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, bounceIndices );
 
 
    eglSwapBuffers ( esContext->eglDisplay, esContext->eglSurface );
-*/
-
 }
 
 ///
