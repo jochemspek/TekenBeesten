@@ -155,6 +155,20 @@ void motion()
     
 }
 
+void
+kbd(unsigned char key, int x, int y)
+{
+  switch((char)key) {
+  case 'q':
+  case 27:    /* ESC */
+      exit(0);
+  default:
+        break;
+  }
+
+  return;
+}
+
 void ESUTIL_API esMainLoop ( ESContext *esContext )
 {
     gettimeofday ( &t1 , &tz );
@@ -165,6 +179,7 @@ void ESUTIL_API esMainLoop ( ESContext *esContext )
     glutReshapeFunc(reshape); 
     glutMouseFunc(mouse); 
     glutMotionFunc(motion);     
+    glutKeyboardFunc(kbd);
     glutMainLoop ();
 }
 
