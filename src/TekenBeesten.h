@@ -39,6 +39,7 @@ typedef struct
    float amplitude;
    float frequency;
    float phase;
+   float radius;
 
 } Attractor;
 
@@ -68,9 +69,12 @@ typedef struct
    GLint bounceTexCoordLoc;
    GLint bounceSamplerLoc;
    GLint bounceFadeLoc;
+   GLint bounceWidthLoc;
+   GLint bounceHeightLoc;
 
    // Attribute locations
    GLint  passThroughPositionLoc;
+   GLint  passThroughCenterLoc;
    GLint  passThroughColorLoc;
 
    // Texture handles
@@ -80,6 +84,10 @@ typedef struct
    GLuint baseFramebuffer;
    GLuint bounceFramebuffer;
 
+   GLfloat circle[ 17 * ( 2 + 4 ) ];
+   float * centerX;
+   float * centerY;
+   int * counter;
    Boid * boids;
    Attractor * attractors;
    int numBoids;

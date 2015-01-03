@@ -15,10 +15,26 @@
 //
 #include "TekenBeesten.h"
 
-#define NUM_BOIDS 1000
-#define NUM_ATTRACTORS 5 
-#define MAX( a, b )     ( ( ( a ) > ( b ) ) ? ( a ) : ( b ) )
-#define MIN( a, b )     ( ( ( a ) < ( b ) ) ? ( a ) : ( b ) )
+#define NUM_BOIDS           500
+#define NUM_ATTRACTORS      4 
+#define MAX( a, b )         ( ( ( a ) > ( b ) ) ? ( a ) : ( b ) )
+#define MIN( a, b )         ( ( ( a ) < ( b ) ) ? ( a ) : ( b ) )
+#define TEXTURE_WIDTH       1024
+#define TEXTURE_HEIGHT      1024
+#define WINDOW_WIDTH        1024
+#define WINDOW_HEIGHT       1024
+#define SPEED               0.01f
+#define CENTERGRAV          0.0007f
+#define ATTRACTORGRAV       0.003f//0.5f
+#define RANDOMVAR           0.010//0.03f
+#define ATTRACTORRADIUS     0.15f//0.03f
+#define COLLISIONRADIUS     0.15f
+#define DOCOLLISION         FALSE
+#define SATURATIONVARIATION 0.1
+#define LUMAVARIATION       0.3
+#define BOIDALPHA           0.4
+#define BOIDRADIUS          0.010
+
 ///
 // Initialize the shader and program object
 //
@@ -42,11 +58,13 @@ int init ( ESContext *esContext )
       "varying vec2 v_texCoord;                            \n"
       "uniform sampler2D s_sampler;                        \n"
       "uniform highp float f_fade;                       \n"
+      "uniform highp float f_width;                       \n"
+      "uniform highp float f_height;                       \n"
       "void main()                                         \n"
       "{                                                   \n"
       "  vec4 color = texture2D( s_sampler, v_texCoord );  \n"
       "  color -= vec4( f_fade );                          \n"
-      "  vec2 edge = pow( 2.0 * ( gl_FragCoord.xy / vec2( 600.0, 600.0 ) - vec2( 0.5 ) ), vec2( 42.0 ) );\n"
+      "  vec2 edge = pow( 2.0 * ( gl_FragCoord.xy / vec2( f_width, f_height ) - vec2( 0.5 ) ), vec2( 22.0 ) );\n"
       "  edge = clamp( vec2( vec2( 1.0 ) - 0.01 * edge ), 0.0, 1.0 ); \n"      
       "  gl_FragColor = color * edge.x * edge.y;                             \n"
       "}                                                   \n";
@@ -56,9 +74,10 @@ int init ( ESContext *esContext )
       "attribute vec2 a_position;   \n"
       "attribute vec4 a_color;      \n"
       "varying vec4 v_color;        \n"
+      "uniform vec2 v_center;       \n"
       "void main()                  \n"
       "{                            \n"
-      "   gl_Position = vec4( a_position, 0.0, 1.0 ); \n"
+      "   gl_Position = vec4( v_center + a_position, 0.0, 1.0 ); \n"
       "   v_color = a_color;        \n"
       "}                            \n";
    
@@ -71,9 +90,7 @@ int init ( ESContext *esContext )
       "}                                                   \n";
 
    GLubyte * data;
-   int width = 2048;
-   int height = 1024;
-   int i;
+   int i, j;
 
    // Load the shaders and get a linked program object
    userData->bounceProgram = esLoadProgram ( bounceVertShader, bounceFragShader );
@@ -83,12 +100,19 @@ int init ( ESContext *esContext )
    userData->bounceTexCoordLoc = glGetAttribLocation ( userData->bounceProgram, "a_texCoord" );
    userData->bounceSamplerLoc = glGetUniformLocation ( userData->bounceProgram, "s_sampler" );
    userData->bounceFadeLoc = glGetUniformLocation ( userData->bounceProgram, "f_fade" );
+   userData->bounceWidthLoc = glGetUniformLocation ( userData->bounceProgram, "f_width" );
+   userData->bounceHeightLoc = glGetUniformLocation ( userData->bounceProgram, "f_height" );
+
+    // set the static data for the circle
+    userData->circle[ 5 ] = BOIDALPHA;
+    for( j = 0; j < 16; j++ ){
+      float a = (float)j / 15.0f * M_PI * 2.0f;
+      userData->circle[ ( j + 1 ) * ( 2 + 4 ) + 0 ] = cos( a ) * BOIDRADIUS;
+      userData->circle[ ( j + 1 ) * ( 2 + 4 ) + 1 ] = sin( a ) * BOIDRADIUS;
+      userData->circle[ ( j + 1 ) * ( 2 + 4 ) + 5 ] = 0.0;
+    }
 
    assertNoError( esContext );
-   printf( "%d\n", userData->bounceFadeLoc );
-
-
-
 
    // Load the shaders and get a linked program object
    userData->passThroughProgram = esLoadProgram ( passThroughVertShader, passThroughFragShader );
@@ -96,11 +120,13 @@ int init ( ESContext *esContext )
    // Get the attribute locations
    userData->passThroughPositionLoc = glGetAttribLocation ( userData->passThroughProgram, "a_position" );
    userData->passThroughColorLoc = glGetAttribLocation ( userData->passThroughProgram, "a_color" );
+   userData->passThroughCenterLoc = glGetUniformLocation ( userData->passThroughProgram, "v_center" );
 
-   data = ( GLubyte * )calloc( width * height * 4, sizeof( GLubyte ) );
+   data = ( GLubyte * )calloc( TEXTURE_WIDTH * TEXTURE_HEIGHT * 3, sizeof( GLubyte ) );
+
    glGenTextures ( 1, &( userData->baseMapTexId ) );
    glBindTexture ( GL_TEXTURE_2D, userData->baseMapTexId );
-   glTexImage2D ( GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data );
+   glTexImage2D ( GL_TEXTURE_2D, 0, GL_RGB, TEXTURE_WIDTH, TEXTURE_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, data );
    glTexParameteri ( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
    glTexParameteri ( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
    glTexParameteri ( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
@@ -113,7 +139,7 @@ int init ( ESContext *esContext )
 
    glGenTextures ( 1, &( userData->bounceMapTexId ) );
    glBindTexture ( GL_TEXTURE_2D, userData->bounceMapTexId );
-   glTexImage2D ( GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data );
+   glTexImage2D ( GL_TEXTURE_2D, 0, GL_RGB, TEXTURE_WIDTH, TEXTURE_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, data );
    glTexParameteri ( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
    glTexParameteri ( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
    glTexParameteri ( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
@@ -130,6 +156,10 @@ int init ( ESContext *esContext )
    userData->attractors = NULL;
    userData->numBoids = 0;
    userData->numAttractors = 0;
+
+   userData->centerX = ( float * )calloc( NUM_ATTRACTORS, sizeof( float ) );
+   userData->centerY = ( float * )calloc( NUM_ATTRACTORS, sizeof( float ) );
+   userData->counter = ( int * )calloc( NUM_ATTRACTORS, sizeof( int ) );
 
    for( i = 0; i < NUM_ATTRACTORS; i++ ){
       addAttractor( esContext, ( ( random() % 32767 ) / 32767.0f - 0.5f ), ( ( random() % 32767 ) / 32767.0f - 0.5f ), ( random() % 32767 ) / 32767.0f, ( random() % 32767 ) / 32767.0f, ( random() % 32767 ) / 32767.0f, M_PI * ( random() % 32767 ) / 32767.0f, 0.1f * ( random() % 32767 ) / 32767.0f, 0.4f );
@@ -302,6 +332,7 @@ void addAttractor( ESContext * esContext, float x, float y, float r, float g, fl
    attractor->phase = phase;
    attractor->frequency = frequency;
    attractor->amplitude = amplitude;
+   attractor->radius = ATTRACTORRADIUS;
 }
 
 void addBoid( ESContext * esContext, float x, float y, int attractor ){
@@ -318,10 +349,10 @@ void addBoid( ESContext * esContext, float x, float y, int attractor ){
    boid->attractor = & userData->attractors[ attractor % userData->numAttractors ];
 
    float r, g, b;
-   float so = 0.1f * ( ( ( random() % 32767 ) / 32767.0 ) - 0.5 ) * 2.0;
+   float so = SATURATIONVARIATION * ( ( ( random() % 32767 ) / 32767.0 ) - 0.5 ) * 2.0;
    float s =  MIN( MAX( 0.0, boid->attractor->s + so ), 1.0 );
-   float lo = 0.1f * ( ( ( random() % 32767 ) / 32767.0 ) - 0.5 ) * 2.0;
-   float l =  MIN( MAX( 0.0, 0.7 + lo ), 1.0 );
+   float lo = LUMAVARIATION * ( ( ( random() % 32767 ) / 32767.0 ) - 0.5 ) * 2.0;
+   float l =  MIN( MAX( 0.0, 0.7 + lo ), 0.75 );
    hsl2rgb( boid->attractor->h, s, l, &r, &g, &b );
 
    boid->r = r;
@@ -331,112 +362,146 @@ void addBoid( ESContext * esContext, float x, float y, int attractor ){
 
 void updateBoids( ESContext * esContext ){
    UserData *userData = esContext->userData;
-   int i;
+   int i, j;
 
    float left = -1.0f;
    float right = 1.0f;
    float bottom = -1.0f;
    float top = 1.0f;
 
-   float speed = 0.0075f;
-   float centerGrav = 0.02f;
-   float attractorGrav = 0.5f;
-   float randomVar = 0.03f;
+   float speed = SPEED;
+   float centerGrav = CENTERGRAV;
+   float attractorGrav = ATTRACTORGRAV;
+   float randomVar = RANDOMVAR;
 
-   float * centerX = ( float * )calloc( userData->numAttractors, sizeof( float ) );
-   float * centerY = ( float * )calloc( userData->numAttractors, sizeof( float ) );
-   int * counter = ( int * )calloc( userData->numAttractors, sizeof( int ) );
+   for( i = 0; i < userData->numAttractors; i++ ){
+      userData->counter[ i ] = 0;
+    }
 
    for( i = 0; i < userData->numBoids; i++ ){
       Boid * boid = &( userData->boids[ i ] );
-      centerX[ boid->attractor->index ] += boid->x;
-      centerY[ boid->attractor->index ] += boid->y;
-      counter[ boid->attractor->index ]++;
+      userData->centerX[ boid->attractor->index ] += boid->x;
+      userData->centerY[ boid->attractor->index ] += boid->y;
+      userData->counter[ boid->attractor->index ]++;
    }
    for( i = 0; i < userData->numAttractors; i++ ){
-      centerX[ i ] /= (float)counter[ i ];
-      centerY[ i ] /= (float)counter[ i ];
+      if( userData->counter[ i ] ){
+        userData->centerX[ i ] /= (float)userData->counter[ i ];
+        userData->centerY[ i ] /= (float)userData->counter[ i ];
+      }
    }
 
    for( i = 0; i < userData->numBoids; i++ ){
       Boid * boid = &( userData->boids[ i ] );
+
+      if( DOCOLLISION ){
+        for( j = i + 1; j < userData->numBoids; j++ ){
+          Boid * boid2 = &( userData->boids[ j ] );
+          if( boid->attractor->index != boid2->attractor->index ){
+            float dx = boid2->x - boid->x;
+            float dy = boid2->y - boid->y;
+            float hyp = dx * dx + dy * dy + 0.00001;
+            float len = sqrtf( hyp );
+            if( len < COLLISIONRADIUS ){
+              dx /= len;
+              dy /= len;
+              float d = COLLISIONRADIUS - len;
+              boid->x -= dx * d;
+              boid->y -= dy * d;
+              boid2->x += dx * d;
+              boid2->y += dy * d;
+            }
+          }
+        }
+      }
+
+      float ax = boid->attractor->x - boid->x;
+      float ay = boid->attractor->y - boid->y;
+      float hyp = ax * ax + ay * ay + 0.00001;
+      float len = sqrtf( hyp );
+
+      for( j = 0; j < userData->numAttractors; j++ ){
+        if( j != boid->attractor->index ){
+          float bx = boid->x - userData->attractors[ j ].x;
+          float by = boid->y - userData->attractors[ j ].y;
+
+          float hyp = bx * bx + by * by + 0.00001;
+          if( sqrtf( hyp ) < len && random() % 100 == 0 ){
+            boid->attractor = &( userData->attractors[ j ] );
+            float r, g, b;
+            float so = SATURATIONVARIATION * ( ( ( random() % 32767 ) / 32767.0 ) - 0.5 ) * 2.0;
+            float s =  MIN( MAX( 0.0, boid->attractor->s + so ), 1.0 );
+            float lo = LUMAVARIATION * ( ( ( random() % 32767 ) / 32767.0 ) - 0.5 ) * 2.0;
+            float l =  MIN( MAX( 0.0, 0.7 + lo ), 0.75 );
+            hsl2rgb( boid->attractor->h, s, l, &r, &g, &b );
+
+            boid->r = r;
+            boid->g = g;
+            boid->b = b;
+          }
+        }
+      }
+      ax = boid->attractor->x - boid->x;
+      ay = boid->attractor->y - boid->y;
+      hyp = ax * ax + ay * ay + 0.00001;
+      len = sqrtf( hyp );
+
+      ax /= len;
+      ay /= len;
+
+      ax = ( boid->attractor->x - ax * boid->attractor->radius );
+      ay = ( boid->attractor->y - ay * boid->attractor->radius );
+
+      float attraction = attractorGrav * boid->attractor->power;
+      boid->x = ( 1.0 - attraction ) * boid->x + attraction * ax;
+      boid->y = ( 1.0 - attraction ) * boid->y + attraction * ay;
+
+      boid->x = ( 1.0 - centerGrav ) * boid->x + centerGrav * userData->centerX[ boid->attractor->index ];
+      boid->y = ( 1.0 - centerGrav ) * boid->y + centerGrav * userData->centerY[ boid->attractor->index ];
+
       float dx = boid->x - boid->x_;
       float dy = boid->y - boid->y_;
       boid->x_ = boid->x;
       boid->y_ = boid->y;
 
-      float hyp = dx * dx + dy * dy;
-      if( hyp > 0.0f ){
-         float len = sqrtf( hyp );
+      hyp = dx * dx + dy * dy + 0.00001;
+      len = sqrtf( hyp );
 
-         dx /= len;
-         dy /= len;
+      dx /= len;
+      dy /= len;
 
-         if( boid->x < left ){
-            boid->x = left;
-            dx *= -1.0f;
-         }
-         else if( boid->x > right ){
-            boid->x = right;
-            dx *= -1.0f;
-         }
-         if( boid->y < bottom ){
-            boid->y = bottom;
-            dy *= -1.0f;
-         }
-         else if( boid->y > top ){
-            boid->y = top;
-            dy *= -1.0f;
-         }
-
-         float angle = M_PI * 2.0 * randomVar * 2.0 * ( ( random() % 32767 ) / 32767.0f - 0.5f );
-         dx = ( dx * cos( angle ) ) - ( dy * sin( angle ) );
-         dy = ( dy * cos( angle ) ) + ( dx * sin( angle ) );
-
-         dx += randomVar * ( ( random() % 32767 ) / 32767.0f - 0.5f );
-         dy += randomVar * ( ( random() % 32767 ) / 32767.0f - 0.5f );
-
-         float bax = boid->attractor->x - boid->x;
-         float bay = boid->attractor->y - boid->y;
-
-         float hyp = bax * bax + bay * bay;
-         if( hyp > 0.0f ){
-            float len = sqrtf( hyp );
-            bax /= len;
-            bay /= len;
-
-            float attraction = attractorGrav * boid->attractor->power;
-            dx = ( 1.0 - attraction ) * dx + attraction * bax;
-            dy = ( 1.0 - attraction ) * dy + attraction * bay;
-
-            float cx = centerX[ boid->attractor->index ] - boid->x;
-            float cy = centerY[ boid->attractor->index ] - boid->y;
-
-            float hyp = cx * cx + cy * cy;
-            if( hyp > 0.0f ){
-               float len = sqrtf( hyp );
-               cx /= len;
-               cy /= len;
-
-               dx = ( 1.0 - centerGrav ) * dx + centerGrav * cx;
-               dy = ( 1.0 - centerGrav ) * dy + centerGrav * cy;
-
-               float hyp = dx * dx + dy * dy;
-               if( hyp > 0.0f ){
-                  float len = sqrtf( hyp );
-                  dx /= len;
-                  dy /= len;
-
-                  boid->x += dx * speed;
-                  boid->y += dy * speed;
-               }
-            }
-         }
+      if( boid->x < left ){
+         boid->x = left;
+         dx *= -1.0f;
       }
+      else if( boid->x > right ){
+         boid->x = right;
+         dx *= -1.0f;
+      }
+      if( boid->y < bottom ){
+         boid->y = bottom;
+         dy *= -1.0f;
+      }
+      else if( boid->y > top ){
+         boid->y = top;
+         dy *= -1.0f;
+      }
+
+//      float angle = M_PI * 2.0 * randomVar * 2.0 * ( ( random() % 32767 ) / 32767.0f - 0.5f );
+//      dx = ( dx * cos( angle ) ) - ( dy * sin( angle ) );
+//      dy = ( dy * cos( angle ) ) + ( dx * sin( angle ) );
+
+      dx += randomVar * ( ( random() % 32767 ) / 32767.0f - 0.5f );
+      dy += randomVar * ( ( random() % 32767 ) / 32767.0f - 0.5f );
+
+      hyp = dx * dx + dy * dy + 0.00001;
+      len = sqrtf( hyp );
+      dx /= len;
+      dy /= len;
+
+      boid->x += dx * speed;
+      boid->y += dy * speed;
    }
-   free( centerX );
-   free( centerY );
-   free( counter );
 }
 
 void updateAttractors( ESContext * esContext ){
@@ -456,8 +521,8 @@ void updateAttractors( ESContext * esContext ){
       attractor->x = lerp * attractor->x + ( 1.0 - lerp ) * attractor->x_;
       attractor->y = lerp * attractor->y + ( 1.0 - lerp ) * attractor->y_;
 
-      attractor->power = attractor->amplitude * ( 0.5f + 0.5f * sin( attractor->phase ) );
-      attractor->phase += attractor->frequency;
+      attractor->power = 1.0;//attractor->amplitude * ( 0.5f + 0.5f * sin( attractor->phase ) );
+//      attractor->phase += attractor->frequency;
    }
 }
 
@@ -471,7 +536,7 @@ void setAttractorPosition( ESContext * esContext, int which, float x, float y ){
 void drawBoids( ESContext * esContext ){
    UserData *userData = esContext->userData;
    int i, j;
-   float radius = 0.01;
+   float radius = BOIDRADIUS;
 /*
    GLfloat * segments = ( GLfloat * )malloc( ( 2 + 4 ) * 2 * userData->numBoids * sizeof( GLfloat ) );
    for( i = 0; i < userData->numBoids; i++ ){
@@ -496,40 +561,34 @@ void drawBoids( ESContext * esContext ){
                            GL_FALSE, 6 * sizeof( GLfloat ), &( segments[ 2 ] ) );
    glEnableVertexAttribArray ( userData->passThroughPositionLoc );
    glEnableVertexAttribArray ( userData->passThroughColorLoc );
-   glLineWidth( radius * 2048.0 );
+   glLineWidth( radius * TEXTURE_WIDTH);
    glDrawArrays( GL_LINES, 0, userData->numBoids * 2 );
    free( segments );
 */
-   GLfloat circle[ 17 * ( 2 + 4 ) ];
+
    for( i = 0; i < userData->numBoids; i++ ){
       Boid * boid = &( userData->boids[ i ] );
+      GLfloat center[ 2 ] = { boid->x, boid->y };
+      glUniform2fv( userData->passThroughCenterLoc, 1, center );
 
-      circle[ 0 ] = boid->x;
-      circle[ 1 ] = boid->y;
-      circle[ 2 ] = boid->r;
-      circle[ 3 ] = boid->g;
-      circle[ 4 ] = boid->b;
-      circle[ 5 ] = 0.4;
+      userData->circle[ 2 ] = boid->r;
+      userData->circle[ 3 ] = boid->g;
+      userData->circle[ 4 ] = boid->b;
       for( j = 0; j < 16; j++ ){
-         float a = (float)j / 15.0f * 3.14165 * 2.0f;
-         circle[ ( j + 1 ) * ( 2 + 4 ) + 0 ] = boid->x + cos( a ) * radius;
-         circle[ ( j + 1 ) * ( 2 + 4 ) + 1 ] = boid->y + sin( a ) * radius;
-         circle[ ( j + 1 ) * ( 2 + 4 ) + 2 ] = boid->r;
-         circle[ ( j + 1 ) * ( 2 + 4 ) + 3 ] = boid->g;
-         circle[ ( j + 1 ) * ( 2 + 4 ) + 4 ] = boid->b;
-         circle[ ( j + 1 ) * ( 2 + 4 ) + 5 ] = 0.0;
+         userData->circle[ ( j + 1 ) * ( 2 + 4 ) + 2 ] = boid->r;
+         userData->circle[ ( j + 1 ) * ( 2 + 4 ) + 3 ] = boid->g;
+         userData->circle[ ( j + 1 ) * ( 2 + 4 ) + 4 ] = boid->b;
       }
+
       glVertexAttribPointer ( userData->passThroughPositionLoc, 2, GL_FLOAT, 
-                              GL_FALSE, 6 * sizeof( GLfloat ), circle );
+                              GL_FALSE, 6 * sizeof( GLfloat ), userData->circle );
       glVertexAttribPointer ( userData->passThroughColorLoc, 4, GL_FLOAT,
-                              GL_FALSE, 6 * sizeof( GLfloat ), &( circle[ 2 ] ) );
+                              GL_FALSE, 6 * sizeof( GLfloat ), &( userData->circle[ 2 ] ) );
       glEnableVertexAttribArray ( userData->passThroughPositionLoc );
       glEnableVertexAttribArray ( userData->passThroughColorLoc );
       glDrawArrays( GL_TRIANGLE_FAN, 0, 17 );
    }
-
 }
-
 
 void drawAttractors( ESContext * esContext ){
    UserData *userData = esContext->userData;
@@ -584,28 +643,29 @@ void drawAttractors( ESContext * esContext ){
 void update ( ESContext *esContext )
 {
    static int iter = 0;
+   int i;
    iter++;
    UserData *userData = esContext->userData;
    GLfloat vBounceVertices[] = { -1.0f,  1.0f, 0.0f, 
                                   0.0f,  0.0f,       
                                  -1.0f, -1.0f, 0.0f, 
-                                  0.0f,  600.0f / 1024.0f,       
+                                  0.0f,  (float)WINDOW_HEIGHT / (float)TEXTURE_HEIGHT,       
                                   1.0f, -1.0f, 0.0f, 
-                                  600.0f / 2048.0f,  600.0f / 1024.0f,       
+                                  (float)WINDOW_WIDTH / (float)TEXTURE_WIDTH,  (float)WINDOW_WIDTH / (float)TEXTURE_HEIGHT,       
                                   1.0f,  1.0f, 0.0f, 
-                                  600.0f / 2048.0f,  0.0f        
+                                  (float)WINDOW_WIDTH / (float)TEXTURE_WIDTH,  0.0f        
                            };
 
-   float xoff = -1.0f / 2048.0f;                           
-   float yoff = -1.0f / 1024.0f;                           
+   float xoff = -1.0f / TEXTURE_WIDTH;                           
+   float yoff = -1.0f / TEXTURE_HEIGHT;                           
    GLfloat vBounceVertices2[] = { -1.0f,  1.0f, 0.0f, 
                                   -xoff,  -yoff,       
                                  -1.0f, -1.0f, 0.0f, 
-                                  -xoff,  600.0f / 1024.0f + yoff,       
+                                  -xoff,  (float)WINDOW_HEIGHT / (float)TEXTURE_HEIGHT + yoff,       
                                   1.0f, -1.0f, 0.0f, 
-                                  600.0f / 2048.0f + xoff,  600.0f / 1024.0f + yoff,       
+                                  (float)WINDOW_WIDTH / (float)TEXTURE_WIDTH + xoff,  (float)WINDOW_HEIGHT / (float)TEXTURE_HEIGHT + yoff,       
                                   1.0f,  1.0f, 0.0f, 
-                                  600.0f / 2048.0f + xoff,  -yoff       
+                                  (float)WINDOW_WIDTH / (float)TEXTURE_WIDTH + xoff,  -yoff       
                            };
    GLushort bounceIndices[] = { 0, 1, 2, 0, 2, 3 };
 
@@ -634,18 +694,38 @@ void update ( ESContext *esContext )
    glEnableVertexAttribArray( userData->bouncePositionLoc );
    glEnableVertexAttribArray( userData->bounceTexCoordLoc );
    glUniform1i( userData->bounceSamplerLoc, 0 );
-   if( iter % 7 == 0 ){
+   if( iter % 10 == 0 ){
       glUniform1f( userData->bounceFadeLoc, 2.0f / 255.0f );
    }
    else{
       glUniform1f( userData->bounceFadeLoc, 0.0f );
    }
+   glUniform1f( userData->bounceWidthLoc, (GLfloat)WINDOW_WIDTH );
+   glUniform1f( userData->bounceHeightLoc, (GLfloat)WINDOW_HEIGHT );
    glDrawElements( GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, bounceIndices );
 
    assertNoError( esContext );
 
    // draw the boids (into the base map)
    glUseProgram ( userData->passThroughProgram );
+
+   for( i = 0; i < userData->numAttractors; i++ ){
+      userData->attractors[ i ].x += 0.05f * ( ( random() % 32767 ) / 32767.0f - 0.5f ) * 2.0f;
+      userData->attractors[ i ].y += 0.05f * ( ( random() % 32767 ) / 32767.0f - 0.5f ) * 2.0f;
+      if( userData->attractors[ i ].x < -1.0 ){
+        userData->attractors[ i ].x = -1.0;
+      }
+      if( userData->attractors[ i ].y < -1.0 ){
+        userData->attractors[ i ].y = -1.0;
+      }
+      if( userData->attractors[ i ].x > 1.0 ){
+        userData->attractors[ i ].x = 1.0;
+      }
+      if( userData->attractors[ i ].y > 1.0 ){
+        userData->attractors[ i ].y = 1.0;
+      }
+      userData->attractors[ i ].y += 0.05f * ( ( random() % 32767 ) / 32767.0f - 0.5f ) * 2.0f;
+   }
 
    if( random() % 100 == 0 ){
       setAttractorPosition( esContext, random(), ( ( random() % 32767 ) / 32767.0f - 0.5f ) * 2.0f, ( ( random() % 32767 ) / 32767.0f - 0.5f ) * 2.0f );
@@ -708,6 +788,10 @@ void shutDown ( ESContext *esContext )
    // Delete program object
    glDeleteProgram ( userData->bounceProgram );
    glDeleteProgram ( userData->passThroughProgram );
+
+   free( userData->centerX );
+   free( userData->centerY );
+   free( userData->counter );
 }
 
 
@@ -719,7 +803,7 @@ int main ( int argc, char *argv[] )
    esInitContext ( &esContext );
    esContext.userData = &userData;
 
-   esCreateWindow( &esContext, "TekenBeesten", 600, 600, ES_WINDOW_RGB );
+   esCreateWindow( &esContext, "TekenBeesten", WINDOW_WIDTH, WINDOW_HEIGHT, ES_WINDOW_RGB );
    
    if ( !init ( &esContext ) ){
       return 0;
