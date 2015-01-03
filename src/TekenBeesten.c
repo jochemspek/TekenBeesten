@@ -27,7 +27,7 @@ int init ( ESContext *esContext )
     "  color -= vec4( f_fade );                          \n"
     "  vec2 edge = pow( 2.0 * ( gl_FragCoord.xy / vec2( f_width, f_height ) - vec2( 0.5 ) ), vec2( 22.0 ) );\n"
     "  edge = clamp( vec2( vec2( 1.0 ) - 0.01 * edge ), 0.0, 1.0 ); \n"      
-    "  gl_FragColor = color * edge.x * edge.y;                             \n"
+    "  gl_FragColor = vec4( color.xyz * edge.x * edge.y, 1.0 );                             \n"
     "}                                                   \n";
 
   GLbyte passThroughVertShader[] =  
@@ -74,11 +74,11 @@ int init ( ESContext *esContext )
   userData->passThroughPositionLoc = glGetAttribLocation ( userData->passThroughProgram, "a_position" );
   userData->passThroughColorLoc = glGetAttribLocation ( userData->passThroughProgram, "a_color" );
 
-  data = ( GLubyte * )calloc( TEXTURE_WIDTH * TEXTURE_HEIGHT * 3, sizeof( GLubyte ) );
+  data = ( GLubyte * )calloc( TEXTURE_WIDTH * TEXTURE_HEIGHT * 4, sizeof( GLubyte ) );
 
   glGenTextures ( 1, &( userData->baseMapTexId ) );
   glBindTexture ( GL_TEXTURE_2D, userData->baseMapTexId );
-  glTexImage2D ( GL_TEXTURE_2D, 0, GL_RGB, TEXTURE_WIDTH, TEXTURE_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, data );
+  glTexImage2D ( GL_TEXTURE_2D, 0, GL_RGBA, TEXTURE_WIDTH, TEXTURE_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, data );
   glTexParameteri ( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
   glTexParameteri ( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
   glTexParameteri ( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
@@ -91,7 +91,7 @@ int init ( ESContext *esContext )
 
   glGenTextures ( 1, &( userData->bounceMapTexId ) );
   glBindTexture ( GL_TEXTURE_2D, userData->bounceMapTexId );
-  glTexImage2D ( GL_TEXTURE_2D, 0, GL_RGB, TEXTURE_WIDTH, TEXTURE_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, data );
+  glTexImage2D ( GL_TEXTURE_2D, 0, GL_RGBA, TEXTURE_WIDTH, TEXTURE_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, data );
   glTexParameteri ( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
   glTexParameteri ( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
   glTexParameteri ( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
