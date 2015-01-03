@@ -20,3 +20,4 @@ clean:
 
 ./src/TekenBeesten: ${COMMONSRC} ${COMMONHDR} ${TekenBeesten}
 	gcc ${COMMONSRC} ${TekenBeesten} -o ./$@ ${INCDIR} ${LIBS}
+
