@@ -50,6 +50,8 @@ extern "C" {
 #define ES_WINDOW_STENCIL       4
 /// esCreateWindow flat - multi-sample buffer
 #define ES_WINDOW_MULTISAMPLE   8
+/// esCreateWindow fullscreen
+#define ES_WINDOW_FULLSCREEN    16
 
 
 ///

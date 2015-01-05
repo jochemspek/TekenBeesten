@@ -74,6 +74,9 @@ GLboolean ESUTIL_API esCreateWindow ( ESContext *esContext, const char* title, G
 
     glutCreateWindow(title);
 
+    if( flags & ES_WINDOW_FULLSCREEN ){
+        glutFullScreen();
+    }
     return GL_TRUE;
 }
 

@@ -11,12 +11,14 @@ int init ( ESContext *esContext )
 #endif
     "attribute vec4 a_position;   \n"
     "attribute vec2 a_texCoord;   \n"
+    "uniform mat4 m_projection;"
     "varying vec2 v_texCoord;     \n"
     "void main()                  \n"
     "{                            \n"
-    "   gl_Position = a_position; \n"
+    "   gl_Position = m_projection * a_position; \n"
     "   v_texCoord = a_texCoord;  \n"
     "}                            \n";
+
 
   GLbyte bounceFragShader[] = 
 #ifdef OSX 
@@ -49,10 +51,11 @@ int init ( ESContext *esContext )
     "attribute vec2 a_position;   \n"
     "attribute vec4 a_color;      \n"
     "varying vec4 v_color;        \n"
+    "uniform mat4 m_projection;"
     "void main()                  \n"
     "{                            \n"
     "   gl_PointSize = 5.0;       \n"
-    "   gl_Position = vec4( a_position, 0.0, 1.0 ); \n"
+    "   gl_Position = m_projection * vec4( a_position, 0.0, 1.0 ); \n"
     "   v_color = a_color;        \n"
     "}                            \n";
 
@@ -66,11 +69,7 @@ int init ( ESContext *esContext )
     "void main()                                         \n"
     "{                                                   \n"
     "   float edge = min( 0.707 - distance( gl_PointCoord, vec2( 0.5, 0.5 ) ), 1.0 ); \n"
-#ifdef OSX        
-    "   gl_FragColor = v_color;                            \n"
-#else
-    "   gl_FragColor = v_color * edge;                            \n"
-#endif
+    "   gl_FragColor = vec4( v_color.xyz, 0.7 * edge );                            \n"
     "}                                                   \n";
 
   GLubyte * data;
@@ -95,6 +94,7 @@ int init ( ESContext *esContext )
   // Get the attribute locations
   userData->passThroughPositionLoc = glGetAttribLocation ( userData->passThroughProgram, "a_position" );
   userData->passThroughColorLoc = glGetAttribLocation ( userData->passThroughProgram, "a_color" );
+  userData->passThroughProjectionLoc = glGetUniformLocation ( userData->passThroughProgram, "m_projection" );
 
   data = ( GLubyte * )calloc( TEXTURE_WIDTH * TEXTURE_HEIGHT * 4, sizeof( GLubyte ) );
 
@@ -127,15 +127,16 @@ int init ( ESContext *esContext )
   glBindFramebuffer( GL_FRAMEBUFFER, 0 );
 
   for( i = 0; i < NUM_ATTRACTORS; i++ ){
-    addAttractor( esContext, i, ( ( random() % 32767 ) / 32767.0f - 0.5f ), ( ( random() % 32767 ) / 32767.0f - 0.5f ), ( random() % 32767 ) / 32767.0f, ( random() % 32767 ) / 32767.0f, ( random() % 32767 ) / 32767.0f, M_PI * ( random() % 32767 ) / 32767.0f, 0.1f * ( random() % 32767 ) / 32767.0f, 0.4f );
+    addAttractor( esContext, i, ( ( random() % 32767 ) / 32767.0f ) * WINDOW_WIDTH, ( ( random() % 32767 ) / 32767.0f ) * WINDOW_HEIGHT, ( random() % 32767 ) / 32767.0f, ( random() % 32767 ) / 32767.0f, ( random() % 32767 ) / 32767.0f, M_PI * ( random() % 32767 ) / 32767.0f, 0.1f * ( random() % 32767 ) / 32767.0f, 0.4f );
   }
   for( i = 0; i < NUM_BOIDS; i++ ){
-    addBoid( esContext, i, ( ( random() % 32767 ) / 32767.0f - 0.5f ), ( ( random() % 32767 ) / 32767.0f - 0.5f ), random() );
+    addBoid( esContext, i, ( ( random() % 32767 ) / 32767.0f ) * WINDOW_WIDTH, ( ( random() % 32767 ) / 32767.0f ) * WINDOW_HEIGHT, random() );
   }
 
   glClearColor ( 0.0f, 0.0f, 0.0f, 0.0f );
   glEnable( GL_BLEND );
   glBlendFunc ( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+  glPointSize( 5.0 );
 
   free( data );
   return TRUE;
@@ -378,11 +379,16 @@ void updateBoids( ESContext * esContext ){
 
   float hyp, len;
 
-  float left = -1.0f;
+  float left = 0.0f;
+  float right = WINDOW_WIDTH;
+  float bottom = 0.0f;
+  float top = WINDOW_HEIGHT;
+
+/*  float left = -1.0f;
   float right = 1.0f;
   float bottom = -1.0f;
   float top = 1.0f;
-
+*/
   for( i = 0; i < NUM_ATTRACTORS; i++ ){
     userData->counter[ i ] = 0;
     userData->centerX[ i ] = 0.0;
@@ -501,6 +507,7 @@ void updateBoids( ESContext * esContext ){
 
     boid->x += dx * SPEED;
     boid->y += dy * SPEED;
+
   }
 }
 
@@ -508,11 +515,16 @@ void updateAttractors( ESContext * esContext ){
    UserData *userData = esContext->userData;
    int i;
 
-   float left = -1.0f;
-   float right = 1.0f;
-   float bottom = -1.0f;
-   float top = 1.0f;
-
+  float left = 0.0f;
+  float right = WINDOW_WIDTH;
+  float bottom = 0.0f;
+  float top = WINDOW_HEIGHT;
+/*
+  float left = -1.0f;
+  float right = 1.0f;
+  float bottom = -1.0f;
+  float top = 1.0f;
+*/
    float lerp = 0.98;
 
    for( i = 0; i < NUM_ATTRACTORS; i++ ){
@@ -524,19 +536,19 @@ void updateAttractors( ESContext * esContext ){
       attractor->power = 1.0;//attractor->amplitude * ( 0.5f + 0.5f * sin( attractor->phase ) );
 //      attractor->phase += attractor->frequency;
 
-      attractor->x += 0.05f * ( ( random() % 32767 ) / 32767.0f - 0.5f ) * 2.0f;
-      attractor->y += 0.05f * ( ( random() % 32767 ) / 32767.0f - 0.5f ) * 2.0f;
-      if( attractor->x < -1.0 ){
-        attractor->x = -1.0;
+      attractor->x += 2.0f * ( ( random() % 32767 ) / 32767.0f - 0.5f ) * 2.0f;
+      attractor->y += 2.0f * ( ( random() % 32767 ) / 32767.0f - 0.5f ) * 2.0f;
+      if( attractor->x < left ){
+        attractor->x = left;
       }
-      if( attractor->y < -1.0 ){
-        attractor->y = -1.0;
+      if( attractor->y < bottom ){
+        attractor->y = bottom;
       }
-      if( attractor->x > 1.0 ){
-        attractor->x = 1.0;
+      if( attractor->x > right ){
+        attractor->x = right;
       }
-      if( attractor->y > 1.0 ){
-        attractor->y = 1.0;
+      if( attractor->y > top ){
+        attractor->y = top;
       }
    }
 }
@@ -552,23 +564,30 @@ void drawBoids( ESContext * esContext ){
    UserData *userData = esContext->userData;
    int i, j;
 
-    for( i = 0; i < NUM_BOIDS; i++ ){
-      Boid * boid = &( userData->boids[ i ] );
+  ESMatrix projection;
+  esMatrixLoadIdentity( & projection );
 
-      userData->boidVertices[ i * 6 + 0 ] = boid->x;
-      userData->boidVertices[ i * 6 + 1 ] = boid->y;
-      userData->boidVertices[ i * 6 + 2 ] = boid->r;
-      userData->boidVertices[ i * 6 + 3 ] = boid->g;
-      userData->boidVertices[ i * 6 + 4 ] = boid->b;
-      userData->boidVertices[ i * 6 + 5 ] = 0.4;
-    }
-    glVertexAttribPointer ( userData->passThroughPositionLoc, 2, GL_FLOAT, 
-                            GL_FALSE, 6 * sizeof( GLfloat ), userData->boidVertices );
-    glVertexAttribPointer ( userData->passThroughColorLoc, 4, GL_FLOAT,
-                            GL_FALSE, 6 * sizeof( GLfloat ), &( userData->boidVertices[ 2 ] ) );
-    glEnableVertexAttribArray ( userData->passThroughPositionLoc );
-    glEnableVertexAttribArray ( userData->passThroughColorLoc );
-    glDrawArrays( GL_POINTS, 0, NUM_BOIDS );
+  esOrtho( &projection, 0.0, WINDOW_WIDTH, 0.0, WINDOW_HEIGHT, -1.0f, 1.0f );
+  for( i = 0; i < NUM_BOIDS; i++ ){
+    Boid * boid = &( userData->boids[ i ] );
+
+    userData->boidVertices[ i * 6 + 0 ] = boid->x;
+    userData->boidVertices[ i * 6 + 1 ] = boid->y;
+    userData->boidVertices[ i * 6 + 2 ] = boid->r;
+    userData->boidVertices[ i * 6 + 3 ] = boid->g;
+    userData->boidVertices[ i * 6 + 4 ] = boid->b;
+    userData->boidVertices[ i * 6 + 5 ] = 1.0;
+  }
+
+  glUniformMatrix4fv( userData->passThroughProjectionLoc, 1, 0, ( const GLfloat * )( projection.m ) );
+
+  glVertexAttribPointer ( userData->passThroughPositionLoc, 2, GL_FLOAT, 
+                          GL_FALSE, 6 * sizeof( GLfloat ), userData->boidVertices );
+  glVertexAttribPointer ( userData->passThroughColorLoc, 4, GL_FLOAT,
+                          GL_FALSE, 6 * sizeof( GLfloat ), &( userData->boidVertices[ 2 ] ) );
+  glEnableVertexAttribArray ( userData->passThroughPositionLoc );
+  glEnableVertexAttribArray ( userData->passThroughColorLoc );
+  glDrawArrays( GL_POINTS, 0, NUM_BOIDS );
 }
 
 void drawAttractors( ESContext * esContext ){
@@ -625,28 +644,33 @@ void update ( ESContext *esContext )
   int i;
   iter++;
   UserData *userData = esContext->userData;
-  GLfloat vBounceVertices[] = { -1.0f,  1.0f, 0.0f, 
+
+  ESMatrix projection;
+  esMatrixLoadIdentity( & projection );
+  esOrtho( &projection, 0.0, WINDOW_WIDTH, 0.0, WINDOW_HEIGHT, -1.0f, 1.0f );
+
+  GLfloat vBounceVertices[] = { 0.0f,  0.0f, 0.0f, 
                                 0.0f,  0.0f,       
-                               -1.0f, -1.0f, 0.0f, 
-                                0.0f,  (float)WINDOW_HEIGHT / (float)TEXTURE_HEIGHT,       
-                                1.0f, -1.0f, 0.0f, 
-                                (float)WINDOW_WIDTH / (float)TEXTURE_WIDTH,  (float)WINDOW_WIDTH / (float)TEXTURE_HEIGHT,       
-                                1.0f,  1.0f, 0.0f, 
-                                (float)WINDOW_WIDTH / (float)TEXTURE_WIDTH,  0.0f        
+                                0.0f,  WINDOW_HEIGHT, 0.0f, 
+                                0.0f,  (float)WINDOW_HEIGHT / (float)TEXTURE_HEIGHT,
+                                WINDOW_WIDTH, WINDOW_HEIGHT, 0.0f, 
+                                (float)WINDOW_WIDTH / (float)TEXTURE_WIDTH,  (float)WINDOW_HEIGHT / (float)TEXTURE_HEIGHT,       
+                                WINDOW_WIDTH,  0.0f, 0.0f, 
+                                (float)WINDOW_WIDTH / (float)TEXTURE_WIDTH,  0.0f       
                          };
 
   float xoff = -1.0f / TEXTURE_WIDTH;                           
-  float yoff = -1.0f / TEXTURE_HEIGHT;                           
-  GLfloat vBounceVertices2[] = { -1.0f,  1.0f, 0.0f, 
+  float yoff = -1.0f / TEXTURE_HEIGHT;                            
+  GLfloat vBounceVertices2[] = { 0.0f,  0.0f, 0.0f, 
                                 -xoff,  -yoff,       
-                               -1.0f, -1.0f, 0.0f, 
+                                0.0f,  WINDOW_HEIGHT, 0.0f, 
                                 -xoff,  (float)WINDOW_HEIGHT / (float)TEXTURE_HEIGHT + yoff,       
-                                1.0f, -1.0f, 0.0f, 
+                                WINDOW_WIDTH, WINDOW_HEIGHT, 0.0f, 
                                 (float)WINDOW_WIDTH / (float)TEXTURE_WIDTH + xoff,  (float)WINDOW_HEIGHT / (float)TEXTURE_HEIGHT + yoff,       
-                                1.0f,  1.0f, 0.0f, 
+                                WINDOW_WIDTH,  0.0f, 0.0f, 
                                 (float)WINDOW_WIDTH / (float)TEXTURE_WIDTH + xoff,  -yoff       
                          };
-  GLushort bounceIndices[] = { 0, 1, 2, 0, 2, 3 };
+  GLushort bounceIndices[] = { 0, 2, 1, 0, 3, 2 };
 
   // Set the viewport
   glViewport ( 0, 0, esContext->width, esContext->height );
@@ -658,6 +682,9 @@ void update ( ESContext *esContext )
   glActiveTexture( GL_TEXTURE0 );
   glBindTexture( GL_TEXTURE_2D, userData->bounceMapTexId );
   glUseProgram( userData->bounceProgram );
+
+  glUniformMatrix4fv( userData->bounceProjectionLoc, 1, 0, ( const GLfloat * )( projection.m ) );
+
   if( iter % 2 == 0 ){
     glVertexAttribPointer( userData->bouncePositionLoc, 3, GL_FLOAT, 
                             GL_FALSE, 5 * sizeof(GLfloat), vBounceVertices2 );
@@ -689,7 +716,7 @@ void update ( ESContext *esContext )
   glUseProgram ( userData->passThroughProgram );
 
   if( random() % 100 == 0 ){
-    setAttractorPosition( esContext, random(), ( ( random() % 32767 ) / 32767.0f - 0.5f ) * 2.0f, ( ( random() % 32767 ) / 32767.0f - 0.5f ) * 2.0f );
+    setAttractorPosition( esContext, random(), WINDOW_WIDTH * ( ( random() % 32767 ) / 32767.0f ), WINDOW_HEIGHT * ( ( random() % 32767 ) / 32767.0f ) );
   }
 
   updateBoids( esContext );
@@ -751,7 +778,7 @@ int main ( int argc, char *argv[] )
    esInitContext ( &esContext );
    esContext.userData = &userData;
 
-   esCreateWindow( &esContext, "TekenBeesten", WINDOW_WIDTH, WINDOW_HEIGHT, ES_WINDOW_RGB );
+   esCreateWindow( &esContext, "TekenBeesten", WINDOW_WIDTH, WINDOW_HEIGHT, ES_WINDOW_RGB | ES_WINDOW_FULLSCREEN );
    
    if ( !init ( &esContext ) ){
       return 0;
