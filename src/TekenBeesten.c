@@ -58,7 +58,7 @@ int init ( ESContext *esContext )
 
   GLbyte passThroughFragShader[] =  
 #ifdef OSX
-    "#version 120\n"
+    "#version 130\n"
 #else
     "precision mediump float;                            \n"
 #endif
@@ -67,7 +67,7 @@ int init ( ESContext *esContext )
     "{                                                   \n"
     "   float edge = min( 0.707 - distance( gl_PointCoord, vec2( 0.5, 0.5 ) ), 1.0 ); \n"
     "   gl_FragColor = v_color * edge;                            \n"
-    "   gl_FragColor = v_color;                            \n"
+//  "   gl_FragColor = v_color;                            \n"
     "}                                                   \n";
 
   GLubyte * data;

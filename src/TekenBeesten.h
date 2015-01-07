@@ -26,8 +26,8 @@
 #define MIN( a, b )         ( ( ( a ) < ( b ) ) ? ( a ) : ( b ) )
 #define TEXTURE_WIDTH       1024
 #define TEXTURE_HEIGHT      1024
-#define WINDOW_WIDTH        1280
-#define WINDOW_HEIGHT       800
+#define WINDOW_WIDTH        512
+#define WINDOW_HEIGHT       512
 #define SPEED               0.01f
 #define CENTERGRAV          0.0007f
 #define ATTRACTORGRAV       0.003f//0.5f

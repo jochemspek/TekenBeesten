@@ -36,8 +36,10 @@ int main()
 
   cvNamedWindow("test_tracking", CV_WINDOW_AUTOSIZE);
 
-  CvCapture *capture=cvCreateFileCapture("EnterExitCrossingPaths2front_blobs.mpeg");
-
+  // CvCapture *capture=cvCreateFileCapture("EnterExitCrossingPaths2front_blobs.mpeg");
+  // CvCapture *capture=cvCreateFileCapture("vtest.avi");
+  CvCapture* capture = cvCreateCameraCapture(0);
+    
   cvGrabFrame(capture);
   IplImage *img = cvRetrieveFrame(capture);
 
@@ -51,7 +53,7 @@ int main()
     cvConvertScale(img, frame, 1, 0);
     cvThreshold(frame, frame, 100, 200, CV_THRESH_BINARY);
 
-    cvSetImageROI(frame, cvRect(0, 25, 383, 287));
+    cvSetImageROI(frame, cvRect(0, 25, 900, 500));
 
     IplImage *chB=cvCreateImage(cvGetSize(frame),8,1);
     cvSplit(frame,chB,NULL,NULL,NULL);
@@ -64,7 +66,7 @@ int main()
     cvFilterByArea(blobs, 500, 1000);
 
     cvUpdateTracks(blobs, tracks, 5., 10);
-    //cvUpdateTracks(blobs, tracks, 10., 5);
+    // cvUpdateTracks(blobs, tracks, 10., 5);
 
     cvRenderBlobs(labelImg, blobs, frame, frame, CV_BLOB_RENDER_CENTROID|CV_BLOB_RENDER_BOUNDING_BOX);
     cvRenderTracks(tracks, frame, frame, CV_TRACK_RENDER_ID|CV_TRACK_RENDER_BOUNDING_BOX|CV_TRACK_RENDER_TO_LOG);
