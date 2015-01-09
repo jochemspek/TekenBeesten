@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.1)
-set(CMAKE_PREFIX_PATH /usr/local/opencv-2)
+set(CMAKE_PREFIX_PATH /usr/local/opencv-3)
 
 find_package(OpenCV REQUIRED)
 find_package(cvBlob REQUIRED)
