@@ -19,5 +19,5 @@ clean:
 	find . -name "Teken*.o" | xargs rm -f
 
 ./src/TekenBeesten: ${COMMONSRC} ${COMMONHDR} ${TekenBeesten}
-	gcc ${COMMONSRC} ${TekenBeesten} -o ./$@ ${INCDIR} ${LIBS}
+	gcc -g ${COMMONSRC} ${TekenBeesten} -o ./$@ ${INCDIR} ${LIBS}
 
