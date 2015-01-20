@@ -718,7 +718,6 @@ void update ( ESContext *esContext )
   drawBoids( esContext );
   //   drawAttractors( esContext );
 
-
   // copy the base texture to the bounce buffer
   glBindFramebuffer( GL_FRAMEBUFFER, userData->bounceFramebuffer );
 
