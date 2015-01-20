@@ -16,29 +16,27 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-
 #include "esUtil.h"
 
-
-#define NUM_BOIDS           1000
+#define NUM_BOIDS           500
 #define NUM_ATTRACTORS      5
 #define MAX( a, b )         ( ( ( a ) > ( b ) ) ? ( a ) : ( b ) )
 #define MIN( a, b )         ( ( ( a ) < ( b ) ) ? ( a ) : ( b ) )
-#define TEXTURE_WIDTH       1024
+#define TEXTURE_WIDTH       2048
 #define TEXTURE_HEIGHT      1024
-#define WINDOW_WIDTH        512
-#define WINDOW_HEIGHT       512
-#define SPEED               0.01f
+#define WINDOW_WIDTH        1280
+#define WINDOW_HEIGHT       800
+#define SPEED               2.0
 #define CENTERGRAV          0.0007f
 #define ATTRACTORGRAV       0.003f//0.5f
 #define RANDOMVAR           0.010//0.03f
-#define ATTRACTORRADIUS     0.15f//0.03f
-#define COLLISIONRADIUS     0.15f
+#define ATTRACTORRADIUS     100.0//0.03f
+#define COLLISIONRADIUS     15.0
 #define DOCOLLISION         FALSE
-#define SATURATIONVARIATION 0//0.1
-#define LUMAVARIATION       0//0.3
+#define SATURATIONVARIATION 0.1
+#define LUMAVARIATION       0.3
 #define BOIDALPHA           0.4
-#define BOIDRADIUS          0.010
+#define BOIDRADIUS          10.0
 
 typedef struct
 {
@@ -94,11 +92,12 @@ typedef struct
    GLint bounceFadeLoc;
    GLint bounceWidthLoc;
    GLint bounceHeightLoc;
+   GLint bounceProjectionLoc;
 
    // Attribute locations
    GLint  passThroughPositionLoc;
    GLint  passThroughColorLoc;
-
+   GLint passThroughProjectionLoc;
    // Texture handles
    GLuint baseMapTexId;
    GLuint bounceMapTexId;

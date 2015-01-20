@@ -1,12 +1,12 @@
 # Straight forward Makefile to compile all examples in a row
 
-INCDIR=-I./common
-LIBS=-lGLESv2 -lEGL -lm -lX11
+INCDIR=-I./common_osx
+LIBS=-lglut -lGL -lm -lX11
 
-COMMONSRC=./common/esShader.c    \
-          ./common/esTransform.c \
-          ./common/esShapes.c    \
-          ./common/esUtil.c
+COMMONSRC=./common_osx/esShader.c    \
+          ./common_osx/esTransform.c \
+          ./common_osx/esShapes.c    \
+          ./common_osx/esUtil.c
 COMMONHRD=esUtil.h
 
 TekenBeesten=./src/TekenBeesten.c
@@ -20,3 +20,4 @@ clean:
 
 ./src/TekenBeesten: ${COMMONSRC} ${COMMONHDR} ${TekenBeesten}
 	gcc ${COMMONSRC} ${TekenBeesten} -o ./$@ ${INCDIR} ${LIBS}
+
