@@ -20,8 +20,8 @@
 #include <iostream>
 
 #if (defined(_WIN32) || defined(__WIN32__) || defined(__TOS_WIN__) || defined(__WINDOWS__) || (defined(__APPLE__) & defined(__MACH__)))
-#include <cv.h>
-#include <highgui.h>
+#include <opencv/cv.h>
+#include <opencv/highgui.h>
 #else
 #include <opencv/cv.h>
 #include <opencv/highgui.h>
