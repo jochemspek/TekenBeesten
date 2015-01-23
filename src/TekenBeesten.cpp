@@ -625,24 +625,22 @@ void drawAttractors( ESContext * esContext ){
 
 void setAttractors ( ESContext * esContext)
 {
-  UserData *userData = (UserData *) esContext->userData;
+	UserData *userData = (UserData *) esContext->userData;
 
 
-  if (1) {
-	    boost::unique_lock<boost::mutex> scoped_lock(track_mutex);
-	for (Tracks::const_iterator it=TrackPositions.begin(); it != TrackPositions.end(); ++it) {
-		std::cout << "Track : " << it->id << " " << it->x << " " << it->y << std::endl;
-		float x = WINDOW_WIDTH * it->x + WINDOW_WIDTH / 2.0;
-		float y = WINDOW_HEIGHT * it->y + WINDOW_HEIGHT  / 2.0;
-    		setAttractorPosition( esContext, it->id, x, y );
-	}
+	if (1) {
+		boost::unique_lock<boost::mutex> scoped_lock(track_mutex);
+		for (Tracks::const_iterator it=TrackPositions.begin(); it != TrackPositions.end(); ++it) {
+			std::cout << "Track : " << it->id << " " << it->x << " " << it->y << std::endl;
+			float x = WINDOW_WIDTH * it->x + WINDOW_WIDTH / 2.0;
+			float y = WINDOW_HEIGHT * it->y + WINDOW_HEIGHT  / 2.0;
+			setAttractorPosition( esContext, it->id, x, y );
+		}
 	} else {
-  if( random() % 100 == 0 ){
-    setAttractorPosition( esContext, random(), WINDOW_WIDTH * ( ( random() % 32767 ) / 32767.0f ), WINDOW_HEIGHT * ( ( random() % 32767 ) / 32767.0f ) );
-  }
-}
-
-
+		if( random() % 100 == 0 ){
+			setAttractorPosition( esContext, random(), WINDOW_WIDTH * ( ( random() % 32767 ) / 32767.0f ), WINDOW_HEIGHT * ( ( random() % 32767 ) / 32767.0f ) );
+		}
+	}
 }
 
 void update ( ESContext *esContext )
@@ -794,7 +792,7 @@ void graphics()
    esInitContext ( &esContext );
    esContext.userData = &userData;
 
-   esCreateWindow( &esContext, "TekenBeesten", WINDOW_WIDTH, WINDOW_HEIGHT, ES_WINDOW_RGB /*| ES_WINDOW_FULLSCREEN */);
+   esCreateWindow( &esContext, "TekenBeesten", WINDOW_WIDTH, WINDOW_HEIGHT, ES_WINDOW_RGB /*| ES_WINDOW_FULLSCREEN*/ );
    
    if ( !init ( &esContext ) ){
       std::cout << "Unable to initialize graphics" << std::endl;
@@ -810,22 +808,20 @@ void graphics()
 
 void tracking()
 {
-    Tracks tracks;
-    initCamera(false);
-    while (1) {
-        tracks = processCamera();
- 	std::cout << "Track count : " << tracks.size() << std::endl;
-        {
-	    boost::unique_lock<boost::mutex> scoped_lock(track_mutex);
-	    TrackPositions = tracks;
-	}
-    }	
+	Tracks tracks;
+	initCamera(true);
+	while (1) {
+		tracks = processCamera();
+		if (tracks.size()) std::cout << "Track count : " << tracks.size() << std::endl;
+		{
+			boost::unique_lock<boost::mutex> scoped_lock(track_mutex);
+			TrackPositions = tracks;
+		}
+	}	
 }
 
 int main ( int argc, char *argv[] )
 {
-    std::cout << "Starting graphics thread" << std::endl;
-
     boost::thread graphicsThread(graphics);
     boost::thread camThread(tracking);
 

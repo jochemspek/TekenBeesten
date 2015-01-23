@@ -54,7 +54,7 @@ Tracks processCamera()
     }
     
     IplImage frm = cap_frame;
-    IplImage *frame = cvCreateImage(cvGetSize(&frm), frm.depth, frm.nChannels);
+    IplImage *frame;
 
     //update the background model
     pMOG2->apply(cap_frame, fgMaskMOG2);
