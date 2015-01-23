@@ -2,7 +2,7 @@
 #define __tracking__h__
 struct Track
 {
-    int id;	// tracking id
+    int id;	    // tracking id
     float x;	// range [-0.5, 0.5]
     float y;	// range [-0.5, 0.5]
 };
@@ -10,14 +10,14 @@ struct Track
 typedef std::list<Track> Tracks;
 
 Tracks processCamera();
-int initCamera(bool show);	// show -> show video and tracking
+int initCamera(bool show);	// show = true -> show video and tracking
 
 // Background subtraction
-#define TRACK_HISTORY	1000		// Number of frames in background history
+#define TRACK_HISTORY	1000	// Number of frames in background history
 // Threshold on the squared Mahalanobis distance between the pixel and the model to decide whether
 // a pixel is well described by the background model. This parameter does not affect the background update.
 #define TRACK_THRESHOLD	16
-#define TRACK_BLUR	7		// Image blurring factor, for noise reduction
+#define TRACK_BLUR	    7		// Image blurring factor, for noise reduction
 
 // Blob detection
 #define TRACK_MIN_BLOB_AREA	2000	// Minimal size of tracked blob (in pixels)
