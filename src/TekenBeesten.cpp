@@ -131,6 +131,8 @@ void  enableAttractor( ESContext * esContext, int which ){
     UserData *userData = (UserData *) esContext->userData;
     Attractor * attractor = &( userData->attractors[ which % NUM_ATTRACTORS ] );
 
+    if (attractor->enabled) return;
+
     attractor->enabled = 1;
     // count the number of enabled attractors (including this one)
     int i, count = 0;
@@ -626,7 +628,11 @@ void drawAttractors( ESContext * esContext ){
 void setAttractors ( ESContext * esContext)
 {
 	UserData *userData = (UserData *) esContext->userData;
+	bool state[NUM_ATTRACTORS];
 
+	for (int i=0; i<NUM_ATTRACTORS; i++) {
+		state[i] = false;
+	}
 
 	if (1) {
 		boost::unique_lock<boost::mutex> scoped_lock(track_mutex);
@@ -635,6 +641,13 @@ void setAttractors ( ESContext * esContext)
 			float x = WINDOW_WIDTH * it->x + WINDOW_WIDTH / 2.0;
 			float y = WINDOW_HEIGHT * it->y + WINDOW_HEIGHT  / 2.0;
 			setAttractorPosition( esContext, it->id, x, y );
+			state[it->id % NUM_ATTRACTORS] = true;
+			enableAttractor( esContext, it->id );
+		}
+		for (int i=0; i<NUM_ATTRACTORS; i++) {
+			if (state[i] == false) {
+				disableAttractor( esContext, i );
+			}
 		}
 	} else {
 		if( random() % 100 == 0 ){
