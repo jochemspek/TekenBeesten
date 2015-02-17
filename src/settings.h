@@ -7,6 +7,8 @@ struct Settings {
     boost::property_tree::ptree properties;
     void load(const std::string &filename);
     
+    bool graphics_full_screen;
+
     bool graphics_simulate_tracking;
     int graphics_num_boids;
     int graphics_num_attractors;

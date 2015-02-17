@@ -839,7 +839,11 @@ void graphics(Settings& settings)
    esInitContext ( &esContext );
    esContext.userData = &userData;
 
-   esCreateWindow( &esContext, "TekenBeesten", settings.graphics_window_width, settings.graphics_window_height, ES_WINDOW_RGB /*| ES_WINDOW_FULLSCREEN*/ );
+   if (settings.graphics_full_screen) {
+	   esCreateWindow( &esContext, "TekenBeesten", settings.graphics_window_width, settings.graphics_window_height, ES_WINDOW_RGB | ES_WINDOW_FULLSCREEN);
+   } else {
+	   esCreateWindow( &esContext, "TekenBeesten", settings.graphics_window_width, settings.graphics_window_height, ES_WINDOW_RGB );
+   }
    
    if ( !init ( &esContext ) ){
       std::cout << "Unable to initialize graphics" << std::endl;
@@ -860,7 +864,7 @@ void tracking(Settings& settings)
 	initCamera(settings, show_camera);
 	while (1) {
 		tracks = processCamera(settings);
-		if (tracks.size()) std::cout << "Track count : " << tracks.size() << std::endl;
+		// if (tracks.size()) std::cout << "Track count : " << tracks.size() << std::endl;
 		{
 			boost::unique_lock<boost::mutex> scoped_lock(track_mutex);
 			TrackPositions = tracks;

@@ -15,7 +15,8 @@
     },
     "graphics" :
     {
-      	"simulate_tracking" : true,
+	"full_screen" : true,
+      	"simulate_tracking" : false,
 
       	"num_boids" : 50,
       	"num_attractors" : 2,

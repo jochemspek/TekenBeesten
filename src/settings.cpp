@@ -8,6 +8,8 @@ void Settings::load(const std::string &filename)
     
     read_json(filename, properties);
     
+    graphics_full_screen = properties.get<bool>("graphics.full_screen");
+
     graphics_simulate_tracking = properties.get<bool>("graphics.simulate_tracking");
     
     graphics_num_boids = properties.get<int>("graphics.num_boids");
