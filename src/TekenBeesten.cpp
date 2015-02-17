@@ -670,7 +670,7 @@ void setAttractors ( ESContext * esContext)
     } else {
 		boost::unique_lock<boost::mutex> scoped_lock(track_mutex);
 		for (Tracks::const_iterator it=TrackPositions.begin(); it != TrackPositions.end(); ++it) {
-			std::cout << "Track : " << it->id << " " << it->x << " " << it->y << std::endl;
+			// std::cout << "Track : " << it->id << " " << it->x << " " << it->y << std::endl;
 			float x = settings.graphics_window_width * it->x + settings.graphics_window_width / 2.0;
 			float y = settings.graphics_window_height * it->y + settings.graphics_window_height  / 2.0;
 			setAttractorPosition( esContext, it->id, x, y );
