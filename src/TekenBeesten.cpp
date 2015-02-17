@@ -2,6 +2,8 @@
 #include <boost/thread/mutex.hpp>
 #include "TekenBeesten.h"
 #include "tracking.h"
+#include "settings.h"
+
 
 Tracks TrackPositions;
 boost::mutex track_mutex; 
@@ -9,7 +11,10 @@ boost::mutex track_mutex;
 int init ( ESContext *esContext )
 {
   UserData *userData = (UserData *) esContext->userData;
+  Settings& settings = userData->settings;
+  
   char bounceVertShader[] =  
+    "#version 120                 \n"
     "attribute vec4 a_position;   \n"
     "attribute vec2 a_texCoord;   \n"
     "varying vec2 v_texCoord;     \n"
@@ -21,6 +26,7 @@ int init ( ESContext *esContext )
     "}                            \n";
 
   char bounceFragShader[] = 
+    "#version 120                                         \n"  
     "varying vec2 v_texCoord;                             \n"
     "uniform sampler2D s_sampler;                         \n"
     "uniform float f_fade;                                \n"
@@ -28,17 +34,18 @@ int init ( ESContext *esContext )
     "uniform float f_height;                              \n"
     "void main()                                          \n"
     "{                                                    \n"
-    "  vec4 color = texture2D( s_sampler, v_texCoord );                                                         \n"
-    "  color -= vec4( f_fade );                                                                                   \n"
+    "  vec4 color = texture2D( s_sampler, v_texCoord );   \n"
+    "  color -= vec4( f_fade );                           \n"
     "  vec2 edge = vec2( 1.0 ) - 0.01 * pow( 2.0 * abs( gl_FragCoord.xy / vec2( f_width, f_height ) - vec2( 0.5 ) ), vec2( 22.0 ) );    \n"
     "  gl_FragColor = vec4( color.xyz * edge.x * edge.y, 1.0 );                             \n"
-    "}                                                   \n";
+    "}                                                    \n";
 
   char passThroughVertShader[] =  
+    "#version 120                 \n"  
     "attribute vec2 a_position;   \n"
     "attribute vec4 a_color;      \n"
     "varying vec4 v_color;        \n"
-    "uniform mat4 m_projection;"
+    "uniform mat4 m_projection;   \n"
     "void main()                  \n"
     "{                            \n"
     "   gl_PointSize = 5.0;       \n"
@@ -47,6 +54,7 @@ int init ( ESContext *esContext )
     "}                            \n";
 
   char passThroughFragShader[] =  
+    "#version 120                                        \n"  
     "varying vec4 v_color;                               \n"
     "void main()                                         \n"
     "{                                                   \n"
@@ -56,6 +64,7 @@ int init ( ESContext *esContext )
 
   GLubyte * data;
   int i, j;
+  
 
   // Load the shaders and get a linked program object
   userData->bounceProgram = esLoadProgram ( bounceVertShader, bounceFragShader );
@@ -109,11 +118,11 @@ int init ( ESContext *esContext )
   assertNoError( esContext );
   glBindFramebuffer( GL_FRAMEBUFFER, 0 );
 
-  for( i = 0; i < NUM_ATTRACTORS; i++ ){
-    addAttractor( esContext, i, ( ( random() % 32767 ) / 32767.0f ) * WINDOW_WIDTH, ( ( random() % 32767 ) / 32767.0f ) * WINDOW_HEIGHT, ( random() % 32767 ) / 32767.0f, ( random() % 32767 ) / 32767.0f, ( random() % 32767 ) / 32767.0f, M_PI * ( random() % 32767 ) / 32767.0f, 0.1f * ( random() % 32767 ) / 32767.0f, 0.4f );
+  for( i = 0; i < settings.graphics_num_attractors; i++ ){
+    addAttractor( esContext, i, ( ( random() % 32767 ) / 32767.0f ) * settings.graphics_window_width, ( ( random() % 32767 ) / 32767.0f ) * settings.graphics_window_height, ( random() % 32767 ) / 32767.0f, ( random() % 32767 ) / 32767.0f, ( random() % 32767 ) / 32767.0f, M_PI * ( random() % 32767 ) / 32767.0f, 0.1f * ( random() % 32767 ) / 32767.0f, 0.4f );
   }
-  for( i = 0; i < NUM_BOIDS; i++ ){
-    addBoid( esContext, i, ( ( random() % 32767 ) / 32767.0f ) * WINDOW_WIDTH, ( ( random() % 32767 ) / 32767.0f ) * WINDOW_HEIGHT, random() );
+  for( i = 0; i < settings.graphics_num_boids; i++ ){
+    addBoid( esContext, i, ( ( random() % 32767 ) / 32767.0f ) * settings.graphics_window_width, ( ( random() % 32767 ) / 32767.0f ) * settings.graphics_window_height, random() );
   }
 
   glClearColor ( 0.0f, 0.0f, 0.0f, 0.0f );
@@ -129,27 +138,29 @@ int init ( ESContext *esContext )
 
 void  enableAttractor( ESContext * esContext, int which ){  
     UserData *userData = (UserData *) esContext->userData;
-    Attractor * attractor = &( userData->attractors[ which % NUM_ATTRACTORS ] );
+    Settings& settings = userData->settings;
+    
+    Attractor * attractor = &( userData->attractors[ which % settings.graphics_num_attractors ] );
 
     if (attractor->enabled) return;
 
     attractor->enabled = 1;
     // count the number of enabled attractors (including this one)
     int i, count = 0;
-    for( i = 0; i < NUM_ATTRACTORS; i++ ){
+    for( i = 0; i < settings.graphics_num_attractors; i++ ){
       count += userData->attractors[ i ].enabled;
     }
     if( count == 1 ){
       // this is the only attractor, so assign all boids to it
-      for( i = 0; i < NUM_BOIDS; i++ ){
+      for( i = 0; i < settings.graphics_num_boids; i++ ){
         userData->boids[ i ].attractor = attractor;
         setBoidColor( & userData->boids[ i ] );
       }
     }
     else{
       // attach a number of boids to this attractor
-      for( i = 0; i < NUM_BOIDS / count; i++ ){
-        int n = rand() % NUM_BOIDS;
+      for( i = 0; i < settings.graphics_num_boids / count; i++ ){
+        int n = rand() % settings.graphics_num_boids;
         userData->boids[ n ].attractor = attractor;
         setBoidColor( & userData->boids[ n ] );
       }
@@ -159,15 +170,17 @@ void  enableAttractor( ESContext * esContext, int which ){
 
 void  disableAttractor( ESContext * esContext, int which ){
   UserData *userData = (UserData *) esContext->userData;
-  Attractor * attractor = &( userData->attractors[ which % NUM_ATTRACTORS ] );
+  Settings& settings = userData->settings;
+  
+  Attractor * attractor = &( userData->attractors[ which % settings.graphics_num_attractors ] );
 
   // disable
   attractor->enabled = 0;
 
   // collect the number of enabled attractors (except this one)
   int i, count = 0;
-  Attractor * enabledAttractors[ NUM_BOIDS ];
-  for( i = 0; i < NUM_ATTRACTORS; i++ ){
+  Attractor * enabledAttractors[ settings.graphics_num_boids ];
+  for( i = 0; i < settings.graphics_num_attractors; i++ ){
     if( userData->attractors[ i ].enabled ){
       enabledAttractors[ count ] = & userData->attractors[ i ];
       count++;
@@ -176,7 +189,7 @@ void  disableAttractor( ESContext * esContext, int which ){
 
   if( count ){
     // attach each boid that was attached to this attractor to an enabled attractor
-    for( i = 0; i < NUM_BOIDS; i++ ){
+    for( i = 0; i < settings.graphics_num_boids; i++ ){
       if( userData->boids[ i ].attractor->index == attractor->index ){
         int n = rand() % count;
         userData->boids[ i ].attractor = enabledAttractors[ n ];
@@ -186,7 +199,7 @@ void  disableAttractor( ESContext * esContext, int which ){
   }
   else{
     // there are NO attractors available, so set all boids to NULL
-    for( i = 0; i < NUM_BOIDS; i++ ){
+    for( i = 0; i < settings.graphics_num_boids; i++ ){
       userData->boids[ i ].attractor = NULL;
       setBoidColor( & userData->boids[ i ] );
     }
@@ -305,6 +318,8 @@ void assertNoError( ESContext * esContext ){
 void addAttractor( ESContext * esContext, int index, float x, float y, float r, float g, float b, float phase, float frequency, float amplitude ){
    static int counter = 0;
    UserData *userData = (UserData *) esContext->userData;
+   Settings& settings = userData->settings;
+   
 
    Attractor * attractor = &( userData->attractors[ index ] );
    attractor->x = x;
@@ -333,6 +348,8 @@ void addAttractor( ESContext * esContext, int index, float x, float y, float r, 
 
 void addBoid( ESContext * esContext, int index, float x, float y, int attractor ){
    UserData *userData = (UserData *) esContext->userData;
+   Settings& settings = userData->settings;
+   
 
    Boid * boid = &( userData->boids[ index ] );
    boid->x = x;
@@ -340,7 +357,7 @@ void addBoid( ESContext * esContext, int index, float x, float y, int attractor 
    boid->x_ = x - 0.01f;
    boid->y_ = y;
 
-   boid->attractor = & userData->attractors[ attractor % NUM_ATTRACTORS ];
+   boid->attractor = & userData->attractors[ attractor % settings.graphics_num_attractors ];
    setBoidColor( boid );
 }
 
@@ -362,26 +379,28 @@ void setBoidColor( Boid * boid ){
 
 void updateBoids( ESContext * esContext ){
   UserData *userData = (UserData *) esContext->userData;
+  Settings& settings = userData->settings;
+  
   int i, j;
 
   float hyp, len;
 
   float left = 0.0f;
-  float right = WINDOW_WIDTH;
+  float right = settings.graphics_window_width;
   float bottom = 0.0f;
-  float top = WINDOW_HEIGHT;
+  float top = settings.graphics_window_height;
 
 /*  float left = -1.0f;
   float right = 1.0f;
   float bottom = -1.0f;
   float top = 1.0f;
 */
-  for( i = 0; i < NUM_ATTRACTORS; i++ ){
+  for( i = 0; i < settings.graphics_num_attractors; i++ ){
     userData->counter[ i ] = 0;
     userData->centerX[ i ] = 0.0;
     userData->centerY[ i ] = 0.0;
   }
-  for( i = 0; i < NUM_BOIDS; i++ ){
+  for( i = 0; i < settings.graphics_num_boids; i++ ){
     Boid * boid = &( userData->boids[ i ] );
     if( boid->attractor ){  
       userData->centerX[ boid->attractor->index ] += boid->x;
@@ -389,18 +408,18 @@ void updateBoids( ESContext * esContext ){
       userData->counter[ boid->attractor->index ]++;
     }
   }
-  for( i = 0; i < NUM_ATTRACTORS; i++ ){
+  for( i = 0; i < settings.graphics_num_attractors; i++ ){
     if( userData->counter[ i ] ){
       userData->centerX[ i ] /= (float)userData->counter[ i ];
       userData->centerY[ i ] /= (float)userData->counter[ i ];
     }
   }
 
-  for( i = 0; i < NUM_BOIDS; i++ ){
+  for( i = 0; i < settings.graphics_num_boids; i++ ){
     Boid * boid = &( userData->boids[ i ] );
 
     if( DOCOLLISION ){
-      for( j = i + 1; j < NUM_BOIDS; j++ ){
+      for( j = i + 1; j < settings.graphics_num_boids; j++ ){
         Boid * boid2 = &( userData->boids[ j ] );
         if( boid->attractor->index != boid2->attractor->index ){
           float dx = boid2->x - boid->x;
@@ -426,7 +445,7 @@ void updateBoids( ESContext * esContext ){
       hyp = ax * ax + ay * ay + 0.00001;
       len = sqrtf( hyp );
 
-      for( j = 0; j < NUM_ATTRACTORS; j++ ){
+      for( j = 0; j < settings.graphics_num_attractors; j++ ){
         if( j != boid->attractor->index && userData->attractors[ j ].enabled ){
           float bx = boid->x - userData->attractors[ j ].x;
           float by = boid->y - userData->attractors[ j ].y;
@@ -500,12 +519,14 @@ void updateBoids( ESContext * esContext ){
 
 void updateAttractors( ESContext * esContext ){
    UserData *userData = (UserData *) esContext->userData;
+   Settings& settings = userData->settings;
+   
    int i;
 
   float left = 0.0f;
-  float right = WINDOW_WIDTH;
+  float right = settings.graphics_window_width;
   float bottom = 0.0f;
-  float top = WINDOW_HEIGHT;
+  float top = settings.graphics_window_height;
 /*
   float left = -1.0f;
   float right = 1.0f;
@@ -514,7 +535,7 @@ void updateAttractors( ESContext * esContext ){
 */
    float lerp = 0.98;
 
-   for( i = 0; i < NUM_ATTRACTORS; i++ ){
+   for( i = 0; i < settings.graphics_num_attractors; i++ ){
       Attractor * attractor = &( userData->attractors[ i ] );
 
       attractor->x = lerp * attractor->x + ( 1.0 - lerp ) * attractor->x_;
@@ -542,20 +563,24 @@ void updateAttractors( ESContext * esContext ){
 
 void setAttractorPosition( ESContext * esContext, int which, float x, float y ){
    UserData *userData = (UserData *) esContext->userData;
-   Attractor * attractor = &( userData->attractors[ which % NUM_ATTRACTORS ] );
+   Settings& settings = userData->settings;
+
+   Attractor * attractor = &( userData->attractors[ which % settings.graphics_num_attractors ] );
    attractor->x_ = x;
    attractor->y_ = y;
 }
 
 void drawBoids( ESContext * esContext ){
    UserData *userData = (UserData *) esContext->userData;
+   Settings& settings = userData->settings;
+   
    int i, j;
 
   ESMatrix projection;
   esMatrixLoadIdentity( & projection );
 
-  esOrtho( &projection, 0.0, WINDOW_WIDTH, 0.0, WINDOW_HEIGHT, -1.0f, 1.0f );
-  for( i = 0; i < NUM_BOIDS; i++ ){
+  esOrtho( &projection, 0.0, settings.graphics_window_width, 0.0, settings.graphics_window_height, -1.0f, 1.0f );
+  for( i = 0; i < settings.graphics_num_boids; i++ ){
     Boid * boid = &( userData->boids[ i ] );
 
     userData->boidVertices[ i * 6 + 0 ] = boid->x;
@@ -574,16 +599,18 @@ void drawBoids( ESContext * esContext ){
                           GL_FALSE, 6 * sizeof( GLfloat ), &( userData->boidVertices[ 2 ] ) );
   glEnableVertexAttribArray ( userData->passThroughPositionLoc );
   glEnableVertexAttribArray ( userData->passThroughColorLoc );
-  glDrawArrays( GL_POINTS, 0, NUM_BOIDS );
+  glDrawArrays( GL_POINTS, 0, settings.graphics_num_boids );
 }
 
 void drawAttractors( ESContext * esContext ){
    UserData *userData = (UserData *) esContext->userData;
+   Settings& settings = userData->settings;
+   
    int i, j;
    float size = 0.1f;
 
-   GLfloat * segments = ( GLfloat * )malloc( ( 2 + 4 ) * 4 * NUM_ATTRACTORS * sizeof( GLfloat ) );
-   for( i = 0; i < NUM_ATTRACTORS; i++ ){
+   GLfloat * segments = ( GLfloat * )malloc( ( 2 + 4 ) * 4 * settings.graphics_num_attractors * sizeof( GLfloat ) );
+   for( i = 0; i < settings.graphics_num_attractors; i++ ){
       Attractor * attractor = &( userData->attractors[ i ] );
       segments[ ( 2 + 4 ) * 4 * i + 0 ] = attractor->x - size;
       segments[ ( 2 + 4 ) * 4 * i + 1 ] = attractor->y;
@@ -621,39 +648,41 @@ void drawAttractors( ESContext * esContext ){
    glEnableVertexAttribArray ( userData->passThroughPositionLoc );
    glEnableVertexAttribArray ( userData->passThroughColorLoc );
    glLineWidth( 2.0 );
-   glDrawArrays( GL_LINES, 0, NUM_ATTRACTORS * 4 );
+   glDrawArrays( GL_LINES, 0, settings.graphics_num_attractors * 4 );
    free( segments );
 }
 
 void setAttractors ( ESContext * esContext)
 {
 	UserData *userData = (UserData *) esContext->userData;
-	bool state[NUM_ATTRACTORS];
+    Settings& settings = userData->settings;
+    
+	bool state[settings.graphics_num_attractors];
 
-	for (int i=0; i<NUM_ATTRACTORS; i++) {
+	for (int i=0; i<settings.graphics_num_attractors; i++) {
 		state[i] = false;
 	}
 
-	if (1) {
+	if (settings.graphics_simulate_tracking) {
+		if( random() % 100 == 0 ){
+			setAttractorPosition( esContext, random(), settings.graphics_window_width * ( ( random() % 32767 ) / 32767.0f ), settings.graphics_window_height * ( ( random() % 32767 ) / 32767.0f ) );
+		}
+    } else {
 		boost::unique_lock<boost::mutex> scoped_lock(track_mutex);
 		for (Tracks::const_iterator it=TrackPositions.begin(); it != TrackPositions.end(); ++it) {
 			std::cout << "Track : " << it->id << " " << it->x << " " << it->y << std::endl;
-			float x = WINDOW_WIDTH * it->x + WINDOW_WIDTH / 2.0;
-			float y = WINDOW_HEIGHT * it->y + WINDOW_HEIGHT  / 2.0;
+			float x = settings.graphics_window_width * it->x + settings.graphics_window_width / 2.0;
+			float y = settings.graphics_window_height * it->y + settings.graphics_window_height  / 2.0;
 			setAttractorPosition( esContext, it->id, x, y );
-			state[it->id % NUM_ATTRACTORS] = true;
+			state[it->id % settings.graphics_num_attractors] = true;
 			enableAttractor( esContext, it->id );
 		}
-		for (int i=0; i<NUM_ATTRACTORS; i++) {
+		for (int i=0; i<settings.graphics_num_attractors; i++) {
 			if (state[i] == false) {
 				disableAttractor( esContext, i );
 			}
 		}
-	} else {
-		if( random() % 100 == 0 ){
-			setAttractorPosition( esContext, random(), WINDOW_WIDTH * ( ( random() % 32767 ) / 32767.0f ), WINDOW_HEIGHT * ( ( random() % 32767 ) / 32767.0f ) );
-		}
-	}
+    }
 }
 
 void update ( ESContext *esContext )
@@ -662,33 +691,35 @@ void update ( ESContext *esContext )
   int i;
   iter++;
   UserData *userData = (UserData *) esContext->userData;
+  Settings& settings = userData->settings;
+  
 
   setAttractors(esContext);
 
   static ESMatrix projection;
   esMatrixLoadIdentity( & projection );
-  esOrtho( &projection, 0.0, WINDOW_WIDTH, 0.0, WINDOW_HEIGHT, -1.0f, 1.0f );
+  esOrtho( &projection, 0.0, settings.graphics_window_width, 0.0, settings.graphics_window_height, -1.0f, 1.0f );
 
   GLfloat vBounceVertices[] = { 0.0f,  0.0f, 0.0f, 
                                 0.0f,  0.0f,       
-                                0.0f,  WINDOW_HEIGHT, 0.0f, 
-                                0.0f,  (float)WINDOW_HEIGHT / (float)TEXTURE_HEIGHT,
-                                WINDOW_WIDTH, WINDOW_HEIGHT, 0.0f, 
-                                (float)WINDOW_WIDTH / (float)TEXTURE_WIDTH,  (float)WINDOW_HEIGHT / (float)TEXTURE_HEIGHT,       
-                                WINDOW_WIDTH,  0.0f, 0.0f, 
-                                (float)WINDOW_WIDTH / (float)TEXTURE_WIDTH,  0.0f       
+                                0.0f,  settings.graphics_window_height, 0.0f, 
+                                0.0f,  (float)settings.graphics_window_height / (float)TEXTURE_HEIGHT,
+                                settings.graphics_window_width, settings.graphics_window_height, 0.0f, 
+                                (float)settings.graphics_window_width / (float)TEXTURE_WIDTH,  (float)settings.graphics_window_height / (float)TEXTURE_HEIGHT,       
+                                settings.graphics_window_width,  0.0f, 0.0f, 
+                                (float)settings.graphics_window_width / (float)TEXTURE_WIDTH,  0.0f       
                          };
 
   float xoff = -1.0f / TEXTURE_WIDTH;                           
   float yoff = -1.0f / TEXTURE_HEIGHT;                            
   GLfloat vBounceVertices2[] = { 0.0f,  0.0f, 0.0f, 
                                 -xoff,  -yoff,       
-                                0.0f,  WINDOW_HEIGHT, 0.0f, 
-                                -xoff,  (float)WINDOW_HEIGHT / (float)TEXTURE_HEIGHT + yoff,       
-                                WINDOW_WIDTH, WINDOW_HEIGHT, 0.0f, 
-                                (float)WINDOW_WIDTH / (float)TEXTURE_WIDTH + xoff,  (float)WINDOW_HEIGHT / (float)TEXTURE_HEIGHT + yoff,       
-                                WINDOW_WIDTH,  0.0f, 0.0f, 
-                                (float)WINDOW_WIDTH / (float)TEXTURE_WIDTH + xoff,  -yoff       
+                                0.0f,  settings.graphics_window_height, 0.0f, 
+                                -xoff,  (float)settings.graphics_window_height / (float)TEXTURE_HEIGHT + yoff,       
+                                settings.graphics_window_width, settings.graphics_window_height, 0.0f, 
+                                (float)settings.graphics_window_width / (float)TEXTURE_WIDTH + xoff,  (float)settings.graphics_window_height / (float)TEXTURE_HEIGHT + yoff,       
+                                settings.graphics_window_width,  0.0f, 0.0f, 
+                                (float)settings.graphics_window_width / (float)TEXTURE_WIDTH + xoff,  -yoff       
                          };
   GLushort bounceIndices[] = { 0, 2, 1, 0, 3, 2 };
 
@@ -735,8 +766,8 @@ void update ( ESContext *esContext )
     glUniform1fv( userData->bounceFadeLoc, 1, & fade0 );
   }
 
-  GLfloat width = (GLfloat)WINDOW_WIDTH;
-  GLfloat height = (GLfloat)WINDOW_HEIGHT;
+  GLfloat width = (GLfloat)settings.graphics_window_width;
+  GLfloat height = (GLfloat)settings.graphics_window_height;
   glUniform1fv( userData->bounceWidthLoc, 1, & width );
   glUniform1fv( userData->bounceHeightLoc, 1, & height );
   glDrawElements( GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, bounceIndices );
@@ -787,6 +818,8 @@ void update ( ESContext *esContext )
 void shutDown ( ESContext *esContext )
 {
    UserData *userData = (UserData *) esContext->userData;
+   Settings& settings = userData->settings;
+   
 
    // Delete texture object
    glDeleteTextures ( 1, &userData->baseMapTexId );
@@ -797,15 +830,16 @@ void shutDown ( ESContext *esContext )
    glDeleteProgram ( userData->passThroughProgram );
 }
 
-void graphics()
+void graphics(Settings& settings)
 {
    ESContext esContext;
    UserData  userData;
+   userData.settings = settings;
 
    esInitContext ( &esContext );
    esContext.userData = &userData;
 
-   esCreateWindow( &esContext, "TekenBeesten", WINDOW_WIDTH, WINDOW_HEIGHT, ES_WINDOW_RGB /*| ES_WINDOW_FULLSCREEN*/ );
+   esCreateWindow( &esContext, "TekenBeesten", settings.graphics_window_width, settings.graphics_window_height, ES_WINDOW_RGB /*| ES_WINDOW_FULLSCREEN*/ );
    
    if ( !init ( &esContext ) ){
       std::cout << "Unable to initialize graphics" << std::endl;
@@ -819,12 +853,13 @@ void graphics()
    shutDown ( &esContext );
 }
 
-void tracking()
+void tracking(Settings& settings)
 {
 	Tracks tracks;
-	initCamera(true);
+    bool show_camera = settings.properties.get<bool>("tracking.show_camera");
+	initCamera(settings, show_camera);
 	while (1) {
-		tracks = processCamera();
+		tracks = processCamera(settings);
 		if (tracks.size()) std::cout << "Track count : " << tracks.size() << std::endl;
 		{
 			boost::unique_lock<boost::mutex> scoped_lock(track_mutex);
@@ -835,8 +870,16 @@ void tracking()
 
 int main ( int argc, char *argv[] )
 {
-    boost::thread graphicsThread(graphics);
-    boost::thread camThread(tracking);
+    Settings settings;
+    try {
+        settings.load("tekenbeesten.json");
+        std::cout << "Success\n";
+    } catch (std::exception &e) {
+        std::cout << "Error: " << e.what() << "\n";
+    }
+   
+    boost::thread graphicsThread(graphics, settings);
+    boost::thread camThread(tracking, settings);
 
     graphicsThread.join();
     camThread.join();

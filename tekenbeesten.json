@@ -1,0 +1,26 @@
+{
+    "tracking" :
+    {
+      	"show_camera" : false,
+      	"history" : 1000,
+      	"threshold" : 16,
+      	"blur" : 7,
+      	"min_blob_area" : 2000,
+      	"max_blob_area" : 10000,
+      	"distance" : 5.0,
+      	"inactive" : 10,
+
+      	"near" : 300,
+      	"far" : 600
+    },
+    "graphics" :
+    {
+      	"simulate_tracking" : true,
+
+      	"num_boids" : 50,
+      	"num_attractors" : 2,
+
+      	"window_width"	: 400,
+      	"window_height" : 300
+    }
+}

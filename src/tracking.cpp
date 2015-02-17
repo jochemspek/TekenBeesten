@@ -26,7 +26,8 @@ Ptr<BackgroundSubtractor> pMOG2; //MOG2 Background subtractor
 int keyboard; //input from keyboard
 bool showVideo = false;
 
-int initCamera( bool show)
+
+int initCamera(Settings& settings,  bool show)
 {
     if (show)  {
         //create GUI windows
@@ -36,7 +37,7 @@ int initCamera( bool show)
     }
 
     //create Background Subtractor objects
-    pMOG2 = createBackgroundSubtractorMOG2(TRACK_HISTORY, TRACK_THRESHOLD, true); //MOG2 approach
+    pMOG2 = createBackgroundSubtractorMOG2(settings.tracking_history, settings.tracking_threshold, true); //MOG2 approach
 
     capture.open(0);
     capture >> cap_frame1;
@@ -44,11 +45,11 @@ int initCamera( bool show)
     return 0;
 }
 
-Tracks processCamera() 
+Tracks processCamera(Settings& settings) 
 {
     if (1) {
         capture >> cap_frame1;
-        blur(cap_frame1, cap_frame, Size(TRACK_BLUR,TRACK_BLUR));
+        blur(cap_frame1, cap_frame, Size(settings.tracking_blur,settings.tracking_blur));
     } else {
         capture >> cap_frame;
     }
@@ -74,8 +75,8 @@ Tracks processCamera()
 
     unsigned int result = cvLabel(chB, labelImg, blobs);
 
-    cvFilterByArea(blobs, TRACK_MIN_BLOB_AREA, TRACK_MAX_BLOB_AREA);
-    cvUpdateTracks(blobs, tracks, TRACK_DISTANCE, TRACK_INACTIVE);
+    cvFilterByArea(blobs, settings.tracking_min_blob_area, settings.tracking_max_blob_area);
+    cvUpdateTracks(blobs, tracks, settings.tracking_distance, settings.tracking_inactive);
 
     if (showVideo) {
         IplImage res = cap_frame;
@@ -100,8 +101,8 @@ Tracks processCamera()
             x = (float) it->second->centroid.x / frm.width;
             y = (float) (frm.height - it->second->maxy) / frm.height;
             x -= 0.5;
-            float y_floor = y * (TRACK_FAR - TRACK_NEAR) + TRACK_NEAR;
-            x = x * y_floor / TRACK_FAR;
+            float y_floor = y * (settings.tracking_far - settings.tracking_near) + settings.tracking_near;
+            x = x * y_floor / settings.tracking_far;
             y -= 0.5;
 
             Track t;

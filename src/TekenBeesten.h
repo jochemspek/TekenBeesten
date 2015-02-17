@@ -17,15 +17,19 @@
 #include <stdlib.h>
 #include <math.h>
 #include "esUtil.h"
+#include "settings.h"
 
-#define NUM_BOIDS           500
-#define NUM_ATTRACTORS      5
+// #define NUM_BOIDS           500
+// #define NUM_ATTRACTORS      5
+#define MAX_NUM_BOIDS           1000
+#define MAX_NUM_ATTRACTORS      10
+
 #define MAX( a, b )         ( ( ( a ) > ( b ) ) ? ( a ) : ( b ) )
 #define MIN( a, b )         ( ( ( a ) < ( b ) ) ? ( a ) : ( b ) )
 #define TEXTURE_WIDTH       2048
 #define TEXTURE_HEIGHT      1024
-#define WINDOW_WIDTH        1280
-#define WINDOW_HEIGHT       800
+// #define WINDOW_WIDTH        1280
+// #define WINDOW_HEIGHT       800
 #define SPEED               2.0
 #define CENTERGRAV          0.0007f
 #define ATTRACTORGRAV       0.003f//0.5f
@@ -105,12 +109,13 @@ typedef struct
    GLuint baseFramebuffer;
    GLuint bounceFramebuffer;
 
-   GLfloat     boidVertices[ NUM_BOIDS * 6 ];
-   float       centerX[ NUM_ATTRACTORS ];
-   float       centerY[ NUM_ATTRACTORS ];
-   int         counter[ NUM_ATTRACTORS ];
-   Boid        boids[ NUM_BOIDS ];
-   Attractor   attractors[ NUM_ATTRACTORS ];
+   GLfloat     boidVertices[ MAX_NUM_BOIDS * 6 ];
+   float       centerX[ MAX_NUM_ATTRACTORS ];
+   float       centerY[ MAX_NUM_ATTRACTORS ];
+   int         counter[ MAX_NUM_ATTRACTORS ];
+   Boid        boids[ MAX_NUM_BOIDS ];
+   Attractor   attractors[ MAX_NUM_ATTRACTORS ];
+   Settings    settings;
 
 } UserData;
 
