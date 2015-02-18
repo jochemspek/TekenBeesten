@@ -29,6 +29,17 @@ bool showVideo = false;
 
 int initCamera(Settings& settings,  bool show)
 {
+    capture.open(0);
+    capture >> cap_frame1;
+    capture >> cap_frame;
+    
+    if( !capture.isOpened() )
+    {
+        std::cerr << "***Could not initialize capturing...***\n";
+        std::cerr << "Current parameter's value: \n";
+        return -1;
+    }    
+
     if (show)  {
         //create GUI windows
         namedWindow("Frame");
@@ -37,11 +48,10 @@ int initCamera(Settings& settings,  bool show)
     }
 
     //create Background Subtractor objects
-    pMOG2 = createBackgroundSubtractorMOG2(settings.tracking_history, settings.tracking_threshold, true); //MOG2 approach
+    //MOG2 approach
+    pMOG2 = createBackgroundSubtractorMOG2(settings.tracking_history,
+                                           settings.tracking_threshold, true);
 
-    capture.open(0);
-    capture >> cap_frame1;
-    capture >> cap_frame;
     return 0;
 }
 
@@ -52,6 +62,32 @@ Tracks processCamera(Settings& settings)
         blur(cap_frame1, cap_frame, Size(settings.tracking_blur,settings.tracking_blur));
     } else {
         capture >> cap_frame;
+    }
+    
+    if (settings.tracking_flip_horizontal) {
+        if (settings.tracking_flip_vertical) {
+            cv::flip(cap_frame,cap_frame,-1);            
+        } else {
+            cv::flip(cap_frame,cap_frame,1);            
+        }
+    } else if (settings.tracking_flip_vertical) {
+        cv::flip(cap_frame,cap_frame,0);
+    }
+    
+    if (settings.tracking_scale_x != 1.0 || settings.tracking_scale_y != 1.0) {
+        cv::Size s = cap_frame.size();
+        cv::Rect roi(0, 0, s.width / settings.tracking_scale_x, s.height / settings.tracking_scale_y);
+        
+        cv::Mat cropped = cap_frame(roi);
+        cap_frame = cropped;
+        
+        // cap_frame = cv::subImage(cap_frame,cvRect(0, 0, s.width * settings.tracking_scale_x, s.height * settings.tracking_scale_y ));
+        
+        // IplImage frm = cap_frame;
+        // cvSetImageROI(&frm, cvRect(0, 0, s.width * settings.tracking_scale_x, s.height * settings.tracking_scale_y ));
+        // cap_frame = cvarrToMat(&frm);
+        // std::cout << "size = " << cap_frame.size() << " scale = " << settings.tracking_scale_x << " " << settings.tracking_scale_y << std::endl;
+        // cv::resize(cap_frame, cap_frame, cap_frame.size(), settings.tracking_scale_x, settings.tracking_scale_y);
     }
     
     IplImage frm = cap_frame;
@@ -99,7 +135,19 @@ Tracks processCamera(Settings& settings)
         if (! it->second->inactive) {
             float x, y;
             x = (float) it->second->centroid.x / frm.width;
-            y = (float) (frm.height - it->second->maxy) / frm.height;
+            y = (float) (frm.height - it->second->miny) / frm.height;
+#if 0
+            if (settings.tracking_scale_x != 1.0) {
+                x *= settings.tracking_scale_x;
+                if (x < 0.0 || x > 1.0) continue;
+            }
+            
+            if (settings.tracking_scale_y != 1.0) {
+                y *= settings.tracking_scale_y;
+                if (y < 0.0 || y > 1.0) continue;
+            }
+#endif
+            
             x -= 0.5;
             float y_floor = y * (settings.tracking_far - settings.tracking_near) + settings.tracking_near;
             x = x * y_floor / settings.tracking_far;

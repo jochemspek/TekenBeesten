@@ -10,12 +10,15 @@ struct Settings {
     bool graphics_full_screen;
 
     bool graphics_simulate_tracking;
+    bool graphics_draw_attractors;
     int graphics_num_boids;
     int graphics_num_attractors;
     
     int graphics_window_width;
     int graphics_window_height;
     
+    int tracking_flip_horizontal;
+    int tracking_flip_vertical;
     int tracking_history;
     int tracking_threshold;
     int tracking_blur;
@@ -26,5 +29,7 @@ struct Settings {
     int tracking_inactive;
     int tracking_near;
     int tracking_far;
+    float tracking_scale_x;
+    float tracking_scale_y;
 };
 #endif // __settings_h__

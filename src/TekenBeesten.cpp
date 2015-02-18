@@ -368,7 +368,7 @@ void setBoidColor( Boid * boid ){
     float so = SATURATIONVARIATION * ( ( ( random() % 32767 ) / 32767.0 ) - 0.5 ) * 2.0;
     float s =  MIN( MAX( 0.0, boid->attractor->s + so ), 1.0 );
     float lo = LUMAVARIATION * ( ( ( random() % 32767 ) / 32767.0 ) - 0.5 ) * 2.0;
-    float l =  MIN( MAX( 0.0, 0.7 + lo ), 0.75 );
+    float l =  MIN( MAX( 0.0, 0.9 + lo ), 1.0 );
     hsl2rgb( boid->attractor->h, s, l, &r, &g, &b );
   }
 
@@ -780,7 +780,7 @@ void update ( ESContext *esContext )
   updateBoids( esContext );
   updateAttractors( esContext );
   drawBoids( esContext );
-  //   drawAttractors( esContext );
+  if (settings.graphics_draw_attractors) drawAttractors( esContext );
 
   // copy the base texture to the bounce buffer
   glBindFramebuffer( GL_FRAMEBUFFER, userData->bounceFramebuffer );
