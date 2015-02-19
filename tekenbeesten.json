@@ -2,26 +2,37 @@
     "tracking" :
     {
       	"show_camera" : false,
+	"flip_horizontal" : false,
+	"flip_vertical" : false,
+
+	"scale_x" : 1.0,
+	"scale_y" : 1.3,
+
+
       	"history" : 1000,
       	"threshold" : 16,
       	"blur" : 7,
       	"min_blob_area" : 2000,
-      	"max_blob_area" : 10000,
+      	"max_blob_area" : 100000,
       	"distance" : 5.0,
       	"inactive" : 10,
 
-      	"near" : 300,
+      	"near" : 600,
       	"far" : 600
     },
     "graphics" :
     {
-	"full_screen" : true,
       	"simulate_tracking" : false,
+	"draw_attractors"  : false,
 
-      	"num_boids" : 50,
-      	"num_attractors" : 2,
+      	"num_boids" : 500,
+      	"num_attractors" : 5,
 
-      	"window_width"	: 400,
-      	"window_height" : 300
+	"full_screen" : true,
+      	"window_width"	: 1280,
+      	"window_height" : 800
+//	"full_screen" : false,
+//      	"window_width"	: 400,
+//      	"window_height" : 300
     }
 }
